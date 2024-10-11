@@ -1,0 +1,11 @@
+[
+    "You were caught in the act! The cops confiscated your funds, and you lost {{amount}} coins.",
+    "A bystander saw you and reported you to the authorities! You lost {{amount}} coins while trying to escape.",
+    "Your criminal plan backfired, and the authorities took everything you had! You lost {{amount}} coins.",
+    "The police raided your hideout, and you lost {{amount}} coins in the process.",
+    "You slipped up and got caught red-handed! The authorities fined you, and you lost {{amount}} coins.",
+    "A sudden turn of events left you empty-handed. You lost {{amount}} coins in the chaos!",
+    "Your crime went horribly wrong, and you lost {{amount}} coins as a result of the botched operation.",
+    "The operation was a disaster, and you lost {{amount}} coins while trying to escape the authorities."
+  ]
+  
