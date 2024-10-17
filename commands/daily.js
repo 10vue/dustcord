@@ -71,9 +71,9 @@ module.exports = {
     // Embed for successful daily claim with footer and timestamp
     const embed = new EmbedBuilder()
       .setColor('#02ba11')  // Green color for successful claim
-      .setDescription(`You have claimed your daily reward of **${rewardAmount} coins**!`)
+      .setDescription(`You have claimed your daily reward of **${rewardAmount} dustollarinos**!`)
       .setFooter({ 
-        text: `Your new balance: ${balances[userId]} coins`, 
+        text: `Your new balance: ${balances[userId]} dustollarinos`, 
         //iconURL: interaction.user.displayAvatarURL(),  // Optional: Avatar icon in footer
       })
       .setTimestamp();  // Adds a timestamp to the embed

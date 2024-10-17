@@ -18,6 +18,18 @@
         "name": "remove",
         "description": "Amount to remove from balance (Admin Only).",
         "required": false
+      },
+      {
+        "type": 4,
+        "name": "pay",
+        "description": "Amount to pay to another user.",
+        "required": false
+      },
+      {
+        "name": "payto",
+        "description": "The user to pay.",
+        "required": false,
+        "type": 6
       }
     ],
     "name": "balance",
@@ -75,6 +87,12 @@
     "type": 1
   },
   {
+    "options": [],
+    "name": "risk",
+    "description": "Shows the success chances of all commands.",
+    "type": 1
+  },
+  {
     "options": [
       {
         "name": "target",
@@ -85,7 +103,7 @@
       {
         "type": 4,
         "name": "amount",
-        "description": "The amount of coins you want to steal",
+        "description": "The amount of dustollarinos you want to steal",
         "required": true
       }
     ],
@@ -96,7 +114,7 @@
   {
     "options": [],
     "name": "slut",
-    "description": "Try your luck for coins!",
+    "description": "Try your luck for dustollarinos!",
     "type": 1
   }
 ]

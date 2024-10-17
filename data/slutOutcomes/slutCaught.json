@@ -1,5 +1,9 @@
 [
-    "You got caught! You lost {{amount}} coins.",
-    "Caught red-handed! You lost {{amount}} coins.",
-    "Uh-oh! The authorities caught you. You lost {{amount}} coins."
-  ]
+  "You thought you were sly, like a fox in the night, but the authorities sniffed you out. They took {{amount}} dustollarinos in fines, and your client dashed before you could collect the payment.",
+  "A smooth raccoon like you got too bold, and the authorities arrived just in time. You lost {{amount}} dustollarinos in fines, and your client vanished before you could finish the job.",
+  "Caught like a hawk diving for its prey, you didn’t see the authorities coming. You lost {{amount}} dustollarinos in penalties, and your client slipped away with a wink and no payment.",
+  "Your attempt was a little too risky. Like a rabbit caught in headlights, you were spotted by the authorities. {{amount}} dustollarinos were taken, and you’re left without a tip or a client.",
+  "Like a panther caught in the hunter’s snare, you couldn’t escape in time. The authorities took {{amount}} dustollarinos as punishment, and your client disappeared faster than a shadow.",
+  "You got too cocky, like a cat pushing its limits. The authorities showed up just in time, fining you {{amount}} dustollarinos. Your client didn’t even stick around to see the outcome.",
+  "Trying to sneak by like a fox in the woods, you were caught off guard. The authorities fined you {{amount}} dustollarinos and sent your client running, leaving you empty-handed."
+]

@@ -66,7 +66,7 @@ async function startLottery(interaction, betAmount = 0, userId = null) {
   }
 
   // Start the countdown timer
-  let countdown = 30;
+  let countdown = countdownTimer;
   const countdownInterval = setInterval(() => {
     if (countdown <= 0) {
       clearInterval(countdownInterval);
@@ -103,7 +103,7 @@ async function placeBet(interaction, betAmount) {
 
   // Check if the user has enough balance to place the bet
   if (!canUserBet(userId, betAmount)) {
-    return interaction.reply(`You don't have enough balance to place a bet of **${betAmount} coins**.`);
+    return interaction.reply(`You don't have enough balance to place a bet of **${betAmount} dustollarinos**.`);
   }
 
   // Deduct the bet amount from the user's balance
@@ -140,7 +140,7 @@ async function placeBet(interaction, betAmount) {
     });
   }
 
-  return interaction.reply(`Your bet of **${betAmount} coins** has been placed!`);
+  return interaction.reply(`Your bet of **${betAmount} dustollarinos** has been placed!`);
 }
 
 // Function to calculate the winner by weighted random pick
@@ -175,7 +175,7 @@ async function spinWheel(interaction) {
   const winnerUser = await interaction.client.users.fetch(winnerId);
   const winnerEmbed = new EmbedBuilder()
     .setColor('#000000')  // Set color to black
-    .setDescription(`${winnerUser.username} won the lottery with a bet of **${winnerBet} coins**! They win **${totalPrize} coins**.`);
+    .setDescription(`${winnerUser.username} won the lottery with a bet of **${winnerBet} dustollarinos**! They win **${totalPrize} dustollarinos**.`);
 
   await interaction.channel.send({ embeds: [winnerEmbed] });
 
@@ -216,7 +216,7 @@ function updateHostMessage(description, color) {
 
 // Get the formatted list of bets
 function getBetsList() {
-  return [...bets.entries()].map(([userId, betAmount]) => `<@${userId}>: ${betAmount} coins`).join('\n') || 'No bets placed yet.';
+  return [...bets.entries()].map(([userId, betAmount]) => `<@${userId}>: ${betAmount} dustollarinos`).join('\n') || 'No bets placed yet.';
 }
 
 module.exports = {

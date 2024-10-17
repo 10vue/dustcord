@@ -34,10 +34,10 @@ module.exports = {
     const leaderboardPromises = sortedBalances.map(async ([userId, balance], index) => {
       try {
         const user = await interaction.client.users.fetch(userId);  // Fetch user details
-        return `${index + 1}. ${user.displayName} - ${balance} coins`; // Use displayName instead of username
+        return `${index + 1}. ${user.displayName} - ${balance} dustollarinos`; // Use displayName instead of username
       } catch (error) {
         console.error(`[ERROR] Could not fetch user: ${userId}`, error);
-        return `${index + 1}. Unknown User - ${balance} coins`; // Fallback if user can't be fetched
+        return `${index + 1}. Unknown User - ${balance} dustollarinos`; // Fallback if user can't be fetched
       }
     });
 
@@ -49,14 +49,14 @@ module.exports = {
       .setTitle('Leaderboard (Top 10 Users)')
       .setDescription(leaderboard.join('\n'))
       .setTimestamp()
-      .setFooter({ text: 'Keep earning coins to climb the leaderboard!' });
+      .setFooter({ text: 'Keep earning dustollarinos to climb the leaderboard!' });
 
     // Check if the user is in the top 10, and find their position if they are not
     let userRankMessage = '';
     const userRank = Object.entries(balances).sort(([, a], [, b]) => b - a).findIndex(([uid]) => uid === userId) + 1;
 
     if (userRank > 10) {
-      userRankMessage = `\nYour current rank is **#${userRank}** with **${balances[userId]} coins**. Keep going!`;
+      userRankMessage = `\nYour current rank is **#${userRank}** with **${balances[userId]} dustollarinos**. Keep going!`;
     }
 
     // Send the leaderboard embed along with the user's rank message if necessary

@@ -1,5 +1,12 @@
+// Import required modules
 const { Client, GatewayIntentBits } = require('discord.js');
-const { token, guildId } = require('./config.json'); // Ensure guildId is included in your config file
+const dotenv = require('dotenv');
+
+// Load environment variables from .env file
+dotenv.config();
+
+const token = process.env.TOKEN;
+const guildId = process.env.GUILD_ID;
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 

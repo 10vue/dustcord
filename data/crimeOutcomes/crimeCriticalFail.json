@@ -1,11 +1,21 @@
 [
-    "You were caught in the act! The cops confiscated your funds, and you lost {{amount}} coins.",
-    "A bystander saw you and reported you to the authorities! You lost {{amount}} coins while trying to escape.",
-    "Your criminal plan backfired, and the authorities took everything you had! You lost {{amount}} coins.",
-    "The police raided your hideout, and you lost {{amount}} coins in the process.",
-    "You slipped up and got caught red-handed! The authorities fined you, and you lost {{amount}} coins.",
-    "A sudden turn of events left you empty-handed. You lost {{amount}} coins in the chaos!",
-    "Your crime went horribly wrong, and you lost {{amount}} coins as a result of the botched operation.",
-    "The operation was a disaster, and you lost {{amount}} coins while trying to escape the authorities."
+  "The plan completely fell apart, and now you're cornered with no escape! You lost {{amount}} dustollarinos... and have to deal with the consequences.",
+  "Your sneaky ways betrayed you, and you were caught red-pawed. The heist failed catastrophically, and you lost {{amount}} dustollarinos.",
+  "You didn’t plan for this! The situation went south fast, and now you’ve lost {{amount}} dustollarinos and all your hopes.",
+  "You were outsmarted by the prey and now find yourself trapped. The heist is a disaster, and you lost {{amount}} dustollarinos!",
+  "The plan fell apart like a pack losing its leader. You’ve been caught, and now you’ve lost {{amount}} dustollarinos and your pride.",
+  "You underestimated the risk, and now you’ve lost {{amount}} dustollarinos and your chance to escape!",
+  "You weren’t quick enough, and now you’ve got more than a scratch on your pride. You lost {{amount}} dustollarinos and got caught!",
+  "Like a cat caught in a trap, your plan fell apart. You lost {{amount}} dustollarinos and barely got away with your tail intact.",
+  "The plan failed so badly, you’ve ended up with nothing but your pride shattered and {{amount}} dustollarinos gone.",
+  "The moment you made a wrong turn, you were caught in a trap. You lost {{amount}} dustollarinos and now face the consequences!",
+  "It was all too much for you—caught and cornered. The heist was a disaster, and you lost {{amount}} dustollarinos!",
+  "The plan went under like a sinking rabbit. You lost {{amount}} dustollarinos and got caught red-handed.",
+  "You got tangled up in your own tricks and ended up with nothing but wet paws. You lost {{amount}} dustollarinos and are in hot water now!",
+  "The heist went under like a sinking boat. You lost {{amount}} dustollarinos and now face the consequences.",
+  "The plan failed miserably, and now you're in a whole mess. You lost {{amount}} dustollarinos!",
+  "You charged in too hard and were overwhelmed. The plan collapsed, and you lost {{amount}} dustollarinos!",
+  "You underestimated the resistance, and now you’ve lost {{amount}} dustollarinos and your chance to escape!",
+  "The plan fell apart, and now you face the full brunt of the law. You lost {{amount}} dustollarinos!"
   ]
   

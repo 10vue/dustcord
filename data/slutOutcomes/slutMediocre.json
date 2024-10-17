@@ -1,4 +1,9 @@
 [
-    "It wasn't the best result, but you earned {{amount}} coins.",
-    "Not great, but you managed to earn {{amount}} coins."
-  ]
+  "You gave them just enough to keep them interested, but not quite the fireworks they were hoping for. They left you {{amount}} dustollarinos, but you can tell they won’t be rushing back.",
+  "Like a raccoon going through the motions, you did just enough to please, but it wasn’t anything to write home about. The client handed over {{amount}} dustollarinos, though you could see the disappointment in their eyes.",
+  "You gave a decent effort, but they expected more. The client left with a tip of {{amount}} dustollarinos, though you could tell they were thinking of someone else.",
+  "Not your best performance, but still enough to get paid. You earned {{amount}} dustollarinos, but the client seemed distracted and certainly not thrilled with the experience.",
+  "Like a sleepy wolf on a lazy day, you did just enough to keep them satisfied, but there wasn’t any passion behind it. The client left you with {{amount}} dustollarinos and no excitement.",
+  "Your service was as dull as a fox in winter. They paid you {{amount}} dustollarinos, but you could tell they were hoping for a little more heat. At least they didn’t walk away empty-handed.",
+  "Your work was like a tired raccoon looking for food—effective but without much enthusiasm. The client slipped you {{amount}} dustollarinos, and you could sense they were unimpressed."
+]

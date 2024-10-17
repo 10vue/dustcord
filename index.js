@@ -1,20 +1,59 @@
-const { Client, GatewayIntentBits, REST, Routes, Collection } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-const config = require('./config.json');
+const {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  Collection,
+} = require("discord.js");
+
+const fs = require("fs");
+const path = require("path");
+require("dotenv").config(); // Load .env file
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
 client.commands = new Collection();
 
 // Path to track previously registered commands
-const registeredCommandsFilePath = path.join(__dirname, 'registeredCommands.json');
+const registeredCommandsFilePath = path.join(
+  __dirname,
+  "registeredCommands.json",
+);
+
+// Function to load previously registered commands with error handling for invalid JSON
+function loadPreviouslyRegisteredCommands() {
+  try {
+    if (fs.existsSync(registeredCommandsFilePath)) {
+      const data = fs.readFileSync(registeredCommandsFilePath, 'utf8');
+      return JSON.parse(data); // Try parsing the content
+    }
+    return []; // If file doesn't exist, return an empty array
+  } catch (error) {
+    console.error('[ERROR] Failed to load registeredCommands.json:', error);
+    return []; // Return an empty array if JSON parsing fails
+  }
+}
+
+// Function to save registered commands with their IDs
+function saveRegisteredCommands(commands) {
+  fs.writeFileSync(
+    registeredCommandsFilePath,
+    JSON.stringify(commands, null, 2),
+  );
+  console.log("Successfully saved registered commands.");
+}
 
 // Function to load commands dynamically
 async function loadCommands() {
-  const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js'));
+  const commandFiles = fs
+    .readdirSync(path.join(__dirname, "commands"))
+    .filter((file) => file.endsWith(".js"));
   const commands = [];
 
   for (const file of commandFiles) {
@@ -34,66 +73,117 @@ function commandsAreEqual(oldCommand, newCommand) {
 
 // Function to check and register new commands
 async function registerNewCommands() {
-  const rest = new REST({ version: '10' }).setToken(config.token);
+  const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
   try {
     const currentCommands = await loadCommands();
 
-    // Read previously registered commands from file
-    let previouslyRegisteredCommands = [];
-    if (fs.existsSync(registeredCommandsFilePath)) {
-      previouslyRegisteredCommands = JSON.parse(fs.readFileSync(registeredCommandsFilePath));
-    }
+    // Load previously registered commands with error handling
+    let previouslyRegisteredCommands = loadPreviouslyRegisteredCommands();
 
     // Get the names and full data of current and previously registered commands
-    const currentCommandNames = currentCommands.map(cmd => cmd.name);
-    const previousCommandNames = previouslyRegisteredCommands.map(cmd => cmd.name);
+    const currentCommandNames = currentCommands.map((cmd) => cmd.name);
+    const previousCommandNames = previouslyRegisteredCommands.map(
+      (cmd) => cmd.name,
+    );
 
     // Find new commands that aren't registered yet or have changed
-    const newOrChangedCommands = currentCommands.filter(cmd => {
-      const matchingOldCommand = previouslyRegisteredCommands.find(oldCmd => oldCmd.name === cmd.name);
+    const newOrChangedCommands = currentCommands.filter((cmd) => {
+      const matchingOldCommand = previouslyRegisteredCommands.find(
+        (oldCmd) => oldCmd.name === cmd.name,
+      );
       return !matchingOldCommand || !commandsAreEqual(matchingOldCommand, cmd);
     });
 
     // Find deleted commands that no longer exist in the current list
-    const deletedCommands = previouslyRegisteredCommands.filter(cmd => !currentCommandNames.includes(cmd.name));
+    const deletedCommands = previouslyRegisteredCommands.filter(
+      (cmd) => !currentCommandNames.includes(cmd.name),
+    );
 
-    // Log deleted commands
+    // Log and delete the deleted commands
     for (const cmd of deletedCommands) {
+      if (!cmd.id) {
+        console.warn(`[COMMAND WARNING] Command "${cmd.name}" does not have a valid ID, skipping deletion.`);
+        continue; // Skip this command if it doesn't have a valid ID
+      }
+
       console.log(`[COMMAND DELETED] Command "${cmd.name}" has been deleted.`);
       // Delete the command from Discord API
-      await rest.delete(Routes.applicationGuildCommand(config.clientId, config.guildId, cmd.id));
-      console.log(`[COMMAND DELETED] Command "${cmd.name}" has been removed from Discord.`);
+      try {
+        await rest.delete(
+          Routes.applicationGuildCommand(
+            process.env.CLIENT_ID,
+            process.env.GUILD_ID,
+            cmd.id
+          )
+        );
+        console.log(
+          `[COMMAND DELETED] Command "${cmd.name}" has been removed from Discord.`
+        );
+      } catch (error) {
+        console.error(`[COMMAND DELETE ERROR] Error deleting command "${cmd.name}":`, error);
+      }
     }
 
+    // Remove deleted commands from the registeredCommands.json file
+    const updatedRegisteredCommands = previouslyRegisteredCommands.filter(
+      (cmd) => currentCommandNames.includes(cmd.name)
+    );
+
+    // Save the updated list to the file
+    saveRegisteredCommands(updatedRegisteredCommands);
+
     // Log added/changed commands
-    newOrChangedCommands.forEach(cmd => {
-      console.log(`[COMMAND UPDATED] New/updated command "${cmd.name}" will be registered.`);
+    newOrChangedCommands.forEach((cmd) => {
+      console.log(
+        `[COMMAND UPDATED] New/updated command "${cmd.name}" will be registered.`
+      );
     });
 
     // If there are new or changed commands, register them
     if (newOrChangedCommands.length > 0) {
-      console.log('Started registering new/updated guild-specific (/) commands.');
-      await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), { body: currentCommands });
+      console.log(
+        "Started registering new/updated guild-specific (/) commands."
+      );
+      await rest.put(
+        Routes.applicationGuildCommands(
+          process.env.CLIENT_ID,
+          process.env.GUILD_ID,
+        ),
+        { body: currentCommands },
+      );
 
-      // Save the newly registered commands to the file
-      fs.writeFileSync(registeredCommandsFilePath, JSON.stringify(currentCommands, null, 2));
+      // Save the newly registered commands to the file with IDs
+      const currentCommandsWithIds = currentCommands.map((cmd) => ({
+        ...cmd,
+        id: cmd.id || undefined, // Ensure `id` exists for each command
+      }));
+      saveRegisteredCommands(currentCommandsWithIds);
 
-      console.log('Successfully registered new/updated guild-specific commands.');
+      console.log(
+        "Successfully registered new/updated guild-specific commands."
+      );
     } else {
-      console.log('No new or updated commands found to register.');
+      console.log("No new or updated commands found to register.");
     }
 
     // Track the updated command list
-    const updatedCommandNames = currentCommands.map(cmd => cmd.name);
-    console.log(`[COMMAND LIST UPDATED] Current command list: ${updatedCommandNames.join(', ')}`);
+    const updatedCommandNames = currentCommands.map((cmd) => cmd.name);
+    console.log(
+      `[COMMAND LIST UPDATED] Current command list: ${updatedCommandNames.join(
+        ", ",
+      )}`,
+    );
   } catch (error) {
-    console.error('[ERROR] Error while registering guild-specific commands:', error);
+    console.error(
+      "[ERROR] Error while registering guild-specific commands:",
+      error,
+    );
   }
 }
 
 // Handle interactions (slash commands)
-client.once('ready', async () => {
+client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
 
   // Register new commands only if there are any changes
@@ -101,7 +191,7 @@ client.once('ready', async () => {
 });
 
 // Interaction handler
-client.on('interactionCreate', async (interaction) => {
+client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -109,45 +199,40 @@ client.on('interactionCreate', async (interaction) => {
   if (!command) {
     console.error(`No command matching ${interaction.commandName} was found.`);
 
-    // Try to register the command dynamically if it is not found
-    const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js'));
-    const commandFile = commandFiles.find(file => {
-      const cmd = require(`./commands/${file}`);
-      return cmd.data.name === interaction.commandName;
+    await interaction.reply({
+      content: "Sorry, this command does not exist.",
+      ephemeral: true,
     });
-
-    if (commandFile) {
-      const command = require(`./commands/${commandFile}`);
-      await registerNewCommands(); // Register the new command dynamically
-      client.commands.set(command.data.name, command); // Add it to the commands collection
-
-      // Reply to user after registering the new command
-      await interaction.reply({ content: `Command "${interaction.commandName}" was not registered. It has been registered now!`, ephemeral: true });
-    } else {
-      await interaction.reply({ content: 'Sorry, this command does not exist.', ephemeral: true });
-    }
     return;
   }
 
   try {
-    console.log(`[COMMAND EXECUTION] ${interaction.user.tag} is executing the ${interaction.commandName} command.`);
+    console.log(
+      `[COMMAND EXECUTION] ${interaction.user.tag} is executing the ${interaction.commandName} command.`,
+    );
     await command.execute(interaction);
   } catch (error) {
     console.error(`Error executing command: ${interaction.commandName}`, error);
-    await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+    await interaction.reply({
+      content: "There was an error executing this command!",
+      ephemeral: true,
+    });
   }
 });
 
-client.login(config.token);
+client.login(process.env.DISCORD_TOKEN);
 
-// Listen for message events
-client.on('messageCreate', async (message) => {
-  // Ignore messages from bots
-  if (message.author.bot) return;
+// Dynamically load all files in the 'services' folder
+const servicesFolderPath = path.join(__dirname, 'services');
 
-  // Check if both "oh" and "deer" are in the message
-  if (message.content.toLowerCase().includes('oh') && message.content.toLowerCase().includes('deer')) {
-    // Respond with "shut the hell up" if both words are found
-    await message.reply('shut the FUCK up');
+// Read the files in the 'services' folder
+fs.readdirSync(servicesFolderPath).forEach(file => {
+  // Only require .js files
+  if (file.endsWith('.js')) {
+    const servicePath = path.join(servicesFolderPath, file);
+    require(servicePath)(client);  // Call the service with the client passed in
   }
 });
+
+// Initialize Word Game (or any other services you have)
+const initializeWordGame = require('./services/wordGame');

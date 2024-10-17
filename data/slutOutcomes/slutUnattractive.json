@@ -1,5 +1,9 @@
 [
-    "Things didn’t go your way today. You got an unattractive result and earned nothing.",
-    "Unattractive! No reward for you this time.",
-    "Looks like you didn’t quite get the attention you wanted. Better luck next time!"
-  ]
+  "You wandered like a tall giraffe in a busy street, too noticeable but with no one paying attention. {{amount}} dustollarinos down the drain with no business in sight.",
+  "Like a bunny with no one around to admire your soft ears, you found yourself ignored. You spent {{amount}} dustollarinos on food, but no one seemed interested in what you had to offer.",
+  "You lingered like a shy hedgehog in the corner, waiting for someone to notice, but no one did. You ended up losing {{amount}} dustollarinos and getting nothing in return.",
+  "You waited around like a dog with its tail between its legs, but no one bothered to give you a second glance. {{amount}} dustollarinos lost and no business to show for it.",
+  "Like a cat caught in the rain, you waited for clients that never came. You spent {{amount}} dustollarinos on nothing—no tips, no interest, just wasted time.",
+  "You’re like a lone wolf on a deserted road, howling for attention, but no one answers. You lost {{amount}} dustollarinos trying to find business, but no one even looked your way.",
+  "You stood out like a flamingo in a crowd of pigeons, too tall and out of place. Clients ignored you completely, and you ended up losing {{amount}} dustollarinos with no results."
+]

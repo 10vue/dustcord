@@ -34,20 +34,20 @@ module.exports = {
 
     const userBalance = balances[userId];
 
-    // Check if the user has enough coins to bet
+    // Check if the user has enough dustollarinos to bet
     if (userBalance < betAmount || betAmount <= 0) {
-      return interaction.reply({ content: 'You do not have enough coins to make this bet!' });
+      return interaction.reply({ content: 'You do not have enough dustollarinos to make this bet!' });
     }
 
     // Decrease the user's balance by the bet amount
     balances[userId] -= betAmount;
     fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
 
-    // Coin flip embed: Coin is in the air
-    const coinFlipEmbed = new EmbedBuilder()
-      .setColor('#e3c207')  // Coin in the air color
-      .setTitle('The coin is in the air! Call it!')
-      .setDescription(`Bet: **${betAmount} coins**`);
+    // dustollarino flip embed: dustollarino is in the air
+    const dustollarinoFlipEmbed = new EmbedBuilder()
+      .setColor('#e3c207')  // dustollarino in the air color
+      .setTitle('The dustollarino is in the air! Call it!')
+      .setDescription(`Bet: **${betAmount} dustollarinos**`);
 
     const row = new ActionRowBuilder()
       .addComponents(
@@ -64,13 +64,13 @@ module.exports = {
     // Defer the reply so we can send a follow-up
     await interaction.deferReply();
 
-    // Send the coin flip message with buttons
+    // Send the dustollarino flip message with buttons
     await interaction.editReply({
-      embeds: [coinFlipEmbed],
+      embeds: [dustollarinoFlipEmbed],
       components: [row]
     });
 
-    // Define filter to ensure only the user who started the coinflip can interact
+    // Define filter to ensure only the user who started the dustollarinoflip can interact
     const filter = (buttonInteraction) => buttonInteraction.user.id === interaction.user.id;
 
     // Set up collector for Heads/Tails choice
@@ -78,20 +78,20 @@ module.exports = {
 
     collector.on('collect', async (choiceInteraction) => {
       const userChoice = choiceInteraction.customId;
-      const coinFlip = Math.random() < 0.5 ? 'heads' : 'tails';
+      const dustollarinoFlip = Math.random() < 0.5 ? 'heads' : 'tails';
 
       let resultMessage;
       let resultColor;
       let amountWonLost = 0;
 
       // Determine win or lose
-      if (coinFlip === userChoice) {
+      if (dustollarinoFlip === userChoice) {
         balances[userId] += betAmount * 2; // Double the bet amount for win
-        resultMessage = `You flipped **${coinFlip}** and won!`;
+        resultMessage = `You flipped **${dustollarinoFlip}** and won!`;
         resultColor = '#02ba11'; // Green for win
         amountWonLost = betAmount * 2; // Amount won
       } else {
-        resultMessage = `You flipped **${coinFlip}** and lost!`;
+        resultMessage = `You flipped **${dustollarinoFlip}** and lost!`;
         resultColor = '#ba0230'; // Red for loss
         amountWonLost = -betAmount; // Amount lost
       }
@@ -106,8 +106,8 @@ module.exports = {
       await choiceInteraction.update({
         embeds: [new EmbedBuilder()
           .setColor(resultColor)
-          .setDescription(`${resultMessage} You now have **${balances[userId]} coins**.`)
-          .setFooter({ text: `New balance: ${balances[userId]} coins.` })
+          .setDescription(`${resultMessage} You now have **${balances[userId]} dustollarinos**.`)
+          .setFooter({ text: `New balance: ${balances[userId]} dustollarinos.` })
           .setTimestamp()
         ],
         components: [],
@@ -118,14 +118,14 @@ module.exports = {
 
     collector.on('end', async (collected, reason) => {
       if (reason === 'time') {
-        balances[userId] = Math.max(balances[userId] - 1, 0);  // Penalize the user by 1 coin if they don't respond in time
+        balances[userId] = Math.max(balances[userId] - 1, 0);  // Penalize the user by 1 dustollarino if they don't respond in time
         fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
 
         await interaction.editReply({
           embeds: [new EmbedBuilder()
             .setColor('#000000')
-            .setDescription(`You didn't call it in time... The coin rolled into a sewer grate and you lost 1 coin. You now have **${balances[userId]} coins**.`)
-            .setFooter({ text: `New balance: ${balances[userId]} coins.` })
+            .setDescription(`You didn't call it in time... The dustollarino rolled into a sewer grate and you lost 1 dustollarino. You now have **${balances[userId]} dustollarinos**.`)
+            .setFooter({ text: `New balance: ${balances[userId]} dustollarinos.` })
             .setTimestamp()
           ],
           components: [],
