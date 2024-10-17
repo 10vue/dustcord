@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = (client) => {
-  // Load the word list from a .json file in the main folder
-  const wordsFilePath = path.join(__dirname, '../words.json');  // Assuming your word list is named 'words.json' in the main folder
+  // Load the word list from data/words.json file
+  const wordsFilePath = path.join(__dirname, '../data/words.json');  // Adjusted to point to data folder
   const words = JSON.parse(fs.readFileSync(wordsFilePath, 'utf8'));  // Read and parse the word list
   let currentWord = '';
   let currentGroup = '';

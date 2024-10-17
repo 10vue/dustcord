@@ -1,6 +1,13 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
+const { Client } = require('pg');  // PostgreSQL client
 const path = require('path');
+
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,  // Database URL from Heroku config vars
+  ssl: {
+    rejectUnauthorized: false,  // Use this for Heroku SSL connection
+  },
+});
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,71 +16,29 @@ module.exports = {
 
   async execute(interaction) {
     const userId = interaction.user.id;
-    const balancesPath = path.join(__dirname, '../data/balances.json');
-    const lastSlutTimesPath = path.join(__dirname, '../data/lastSlutTimes.json');
-    const slutSuccessPath = path.join(__dirname, '../data/slutOutcomes/slutSuccess.json');
-    const slutMediocrePath = path.join(__dirname, '../data/slutOutcomes/slutMediocre.json');
-    const slutUnattractivePath = path.join(__dirname, '../data/slutOutcomes/slutUnattractive.json');
-    const slutCaughtPath = path.join(__dirname, '../data/slutOutcomes/slutCaught.json');
-
-    // Ensure the lastSlutTimes.json file exists
-    if (!fs.existsSync(lastSlutTimesPath)) {
-      fs.writeFileSync(lastSlutTimesPath, JSON.stringify({}, null, 2)); // Create file with an empty object
-    }
-
-    // Read the balances, outcome JSON files, and lastSlutTimes.json
-    let balances = {};
-    let lastSlutTimes = {};
-    let slutSuccessMessages = [];
-    let slutMediocreMessages = [];
-    let slutUnattractiveMessages = [];
-    let slutCaughtMessages = [];
-
-    try {
-      balances = JSON.parse(fs.readFileSync(balancesPath));
-      lastSlutTimes = JSON.parse(fs.readFileSync(lastSlutTimesPath));
-      slutSuccessMessages = JSON.parse(fs.readFileSync(slutSuccessPath));
-      slutMediocreMessages = JSON.parse(fs.readFileSync(slutMediocrePath));
-      slutUnattractiveMessages = JSON.parse(fs.readFileSync(slutUnattractivePath));
-      slutCaughtMessages = JSON.parse(fs.readFileSync(slutCaughtPath));
-    } catch (error) {
-      console.error('[ERROR] Error reading data files:', error);
-    }
-
-    // Default balance and last crime time for the user if none exist
-    if (!balances[userId]) {
-      balances[userId] = 0;
-    }
-    if (!lastSlutTimes[userId]) {
-      lastSlutTimes[userId] = 0;
-    }
-
-    // Cooldown logic: one hour (3600000 milliseconds)
     const currentTime = Date.now();
-    const oneHour = 3600000; // 1 hour in milliseconds
-    const timeSinceLastSlut = currentTime - lastSlutTimes[userId];
+    
+    // Connect to the database
+    await client.connect();
 
-    if (timeSinceLastSlut < oneHour) {
-      const timeRemaining = Math.ceil((oneHour - timeSinceLastSlut) / 60000); // Convert remaining time to minutes
+    // Check the last attempt time
+    const resCooldown = await client.query('SELECT last_slut_time FROM last_slut_times WHERE user_id = $1', [userId]);
+    const lastSlutTime = resCooldown.rows[0] ? resCooldown.rows[0].last_slut_time : null;
+
+    const oneHour = 3600000; // 1 hour in milliseconds
+    if (lastSlutTime && currentTime - lastSlutTime < oneHour) {
+      const timeRemaining = Math.ceil((oneHour - (currentTime - lastSlutTime)) / 60000); // Convert remaining time to minutes
       return interaction.reply({
         content: `You need to wait ${timeRemaining} more minutes before trying again!`,
         ephemeral: true,
       });
     }
 
-    // Update the last crime time
-    lastSlutTimes[userId] = currentTime;
-
-    // Save the updated last crime times
-    try {
-      fs.writeFileSync(lastSlutTimesPath, JSON.stringify(lastSlutTimes, null, 2));
-    } catch (error) {
-      console.error('[ERROR] Error saving lastSlutTimes file:', error);
-    }
+    // Update the last attempt time
+    await client.query('INSERT INTO last_slut_times (user_id, last_slut_time) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET last_slut_time = $2', [userId, currentTime]);
 
     // Generate random outcome based on probabilities
     const randomChance = Math.random();
-
     let responseMessage = '';
     let rewardAmount = 0;
     let embedColor = '#ffffff';  // Default neutral color
@@ -81,18 +46,18 @@ module.exports = {
     // Success (40% chance)
     if (randomChance <= 0.40) {
       rewardAmount = Math.floor(Math.random() * (1500 - 500 + 1)) + 500; // Random between 500 and 1500
-      balances[userId] += rewardAmount;
-
-      const successMessage = slutSuccessMessages[Math.floor(Math.random() * slutSuccessMessages.length)];
+      const successRes = await client.query('SELECT message FROM slut_success');
+      const successMessages = successRes.rows.map(row => row.message);
+      const successMessage = successMessages[Math.floor(Math.random() * successMessages.length)];
       responseMessage = successMessage.replace('{{amount}}', rewardAmount); // Replace {{amount}} with actual dustollarinos earned
       embedColor = '#02ba11';  // Green for success
     } 
     // Mediocre (30% chance)
     else if (randomChance <= 0.70) {
       rewardAmount = Math.floor(Math.random() * (100 - 10 + 1)) + 10; // Random between 10 and 100
-      balances[userId] += rewardAmount;
-
-      const mediocreMessage = slutMediocreMessages[Math.floor(Math.random() * slutMediocreMessages.length)];
+      const mediocreRes = await client.query('SELECT message FROM slut_mediocre');
+      const mediocreMessages = mediocreRes.rows.map(row => row.message);
+      const mediocreMessage = mediocreMessages[Math.floor(Math.random() * mediocreMessages.length)];
       responseMessage = mediocreMessage.replace('{{amount}}', rewardAmount); // Replace {{amount}} with actual dustollarinos earned
       embedColor = '#f4c542';  // Yellow for mediocre outcome
     }
@@ -102,22 +67,29 @@ module.exports = {
       const lossAmount = Math.floor(balances[userId] * lossPercentage);
       balances[userId] -= lossAmount;
 
-      const caughtMessage = slutCaughtMessages[Math.floor(Math.random() * slutCaughtMessages.length)];
+      const caughtRes = await client.query('SELECT message FROM slut_caught');
+      const caughtMessages = caughtRes.rows.map(row => row.message);
+      const caughtMessage = caughtMessages[Math.floor(Math.random() * caughtMessages.length)];
       responseMessage = caughtMessage.replace('{{amount}}', lossAmount); // Replace {{amount}} with actual dustollarinos lost
       embedColor = '#ba0230';  // Red for caught (loss)
     }
     // Unattractive (10% chance)
     else {
-      const unattractiveMessage = slutUnattractiveMessages[Math.floor(Math.random() * slutUnattractiveMessages.length)];
+      const unattractiveRes = await client.query('SELECT message FROM slut_unattractive');
+      const unattractiveMessages = unattractiveRes.rows.map(row => row.message);
+      const unattractiveMessage = unattractiveMessages[Math.floor(Math.random() * unattractiveMessages.length)];
       responseMessage = unattractiveMessage;
       embedColor = '#000000';  // Black for unattractive (no dustollarinos involved)
     }
 
-    // Save the updated balance
-    try {
-      fs.writeFileSync(balancesPath, JSON.stringify(balances, null, 2));
-    } catch (error) {
-      console.error('[ERROR] Error saving balances file:', error);
+    // Update user balance in the database
+    const balanceRes = await client.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
+    const userBalance = balanceRes.rows[0] ? balanceRes.rows[0].balance : 0;
+
+    if (!balanceRes.rows[0]) {
+      await client.query('INSERT INTO balances (user_id, balance) VALUES ($1, $2)', [userId, rewardAmount]);
+    } else {
+      await client.query('UPDATE balances SET balance = $1 WHERE user_id = $2', [userBalance + rewardAmount, userId]);
     }
 
     // Create embed with the response message and the corresponding color
@@ -125,9 +97,12 @@ module.exports = {
       .setColor(embedColor)
       .setDescription(responseMessage)
       .setTimestamp()
-      .setFooter({ text: `Your new balance: ${balances[userId]} dustollarinos` });  // Add footer showing new balance
+      .setFooter({ text: `Your new balance: ${userBalance + rewardAmount} dustollarinos` });  // Add footer showing new balance
 
     // Send the final response as an embed
     await interaction.reply({ embeds: [embed] });
+
+    // Disconnect from the database
+    await client.end();
   },
 };

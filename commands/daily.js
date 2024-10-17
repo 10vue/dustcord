@@ -1,6 +1,15 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { Client } = require('pg');  // Import pg client
+
+// Initialize PostgreSQL client with the DATABASE_URL from Heroku
+const pgClient = new Client({
+  connectionString: process.env.DATABASE_URL,  // Heroku's Postgres URL stored in .env
+  ssl: {
+    rejectUnauthorized: false,  // Required for Heroku Postgres
+  },
+});
+
+pgClient.connect();  // Connect to the database
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,18 +18,6 @@ module.exports = {
 
   async execute(interaction) {
     const userId = interaction.user.id;
-    const balancesPath = path.join(__dirname, '../data/balances.json');
-    const dailyCooldownsPath = path.join(__dirname, '../data/dailyCooldowns.json');
-
-    // Read balances and daily cooldown files
-    let balances = {};
-    let dailyCooldowns = {};
-    try {
-      balances = JSON.parse(fs.readFileSync(balancesPath));
-      dailyCooldowns = JSON.parse(fs.readFileSync(dailyCooldownsPath));
-    } catch (error) {
-      console.error('[ERROR] Error reading data files:', error);
-    }
 
     const now = new Date();
 
@@ -31,54 +28,60 @@ module.exports = {
     const todayMidnight = new Date(currentTime);
     todayMidnight.setHours(0, 0, 0, 0); // Set to midnight (00:00:00)
 
-    // Check if user has already claimed today
-    if (dailyCooldowns[userId] && dailyCooldowns[userId] > todayMidnight.getTime()) {
-      // Calculate the remaining time until next claim (next midnight)
-      const timeLeft = dailyCooldowns[userId] - currentTime.getTime();
-      const remainingTime = new Date(timeLeft);
-
-      // Format the remaining time as a Discord timestamp (relative time)
-      const remainingTimestamp = `<t:${Math.floor((now.getTime() + timeLeft) / 1000)}:R>`;
-
-      // Embed for cooldown message
-      const embed = new EmbedBuilder()
-        .setColor('#f4c542')  // Yellow color for cooldown state
-        .setDescription(`You have already claimed your daily reward today! You can claim it again ${remainingTimestamp}.`);
-
-      return interaction.reply({ embeds: [embed] });
-    }
-
-    // If no balance exists, initialize it to 0
-    if (!balances[userId]) {
-      balances[userId] = 0;
-    }
-
-    // Give the user their daily reward
-    const rewardAmount = 1000;
-    balances[userId] += rewardAmount;
-
-    // Set the next cooldown for the user (next midnight)
-    dailyCooldowns[userId] = todayMidnight.getTime() + 86400000; // 24 hours in milliseconds
-
-    // Save updated balances and cooldowns
     try {
-      fs.writeFileSync(balancesPath, JSON.stringify(balances, null, 2));
-      fs.writeFileSync(dailyCooldownsPath, JSON.stringify(dailyCooldowns, null, 2));
+      // Query user's balance and daily cooldown from the database
+      const balanceRes = await pgClient.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
+      const cooldownRes = await pgClient.query('SELECT cooldown FROM daily_cooldowns WHERE user_id = $1', [userId]);
+
+      let userBalance = balanceRes.rows.length ? balanceRes.rows[0].balance : 0;
+      let lastClaimTime = cooldownRes.rows.length ? new Date(cooldownRes.rows[0].cooldown).getTime() : 0;
+
+      // Check if user has already claimed today
+      if (lastClaimTime > todayMidnight.getTime()) {
+        // Calculate the remaining time until next claim (next midnight)
+        const timeLeft = lastClaimTime - currentTime.getTime();
+        const remainingTimestamp = `<t:${Math.floor((now.getTime() + timeLeft) / 1000)}:R>`; // Format remaining time
+
+        // Embed for cooldown message
+        const embed = new EmbedBuilder()
+          .setColor('#f4c542')  // Yellow color for cooldown state
+          .setDescription(`You have already claimed your daily reward today! You can claim it again ${remainingTimestamp}.`);
+
+        return interaction.reply({ embeds: [embed] });
+      }
+
+      // Give the user their daily reward
+      const rewardAmount = 1000;
+      userBalance += rewardAmount;
+
+      // Set the next cooldown for the user (next midnight)
+      lastClaimTime = todayMidnight.getTime() + 86400000; // 24 hours in milliseconds
+
+      // Save updated balances and cooldowns in the database
+      await pgClient.query(
+        'INSERT INTO balances (user_id, balance) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET balance = $2',
+        [userId, userBalance]
+      );
+
+      await pgClient.query(
+        'INSERT INTO daily_cooldowns (user_id, cooldown) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET cooldown = $2',
+        [userId, new Date(lastClaimTime)]
+      );
+
+      // Embed for successful daily claim with footer and timestamp
+      const embed = new EmbedBuilder()
+        .setColor('#02ba11')  // Green color for successful claim
+        .setDescription(`You have claimed your daily reward of **${rewardAmount} dustollarinos**!`)
+        .setFooter({
+          text: `Your new balance: ${userBalance} dustollarinos`,
+        })
+        .setTimestamp();  // Adds a timestamp to the embed
+
+      await interaction.reply({ embeds: [embed] });
+      console.log(`[DAILY] ${interaction.user.tag} claimed their daily reward.`);
     } catch (error) {
-      console.error('[ERROR] Error saving data files:', error);
+      console.error('[ERROR] Error processing daily command:', error);
+      await interaction.reply({ content: 'There was an error processing your daily reward. Please try again later.' });
     }
-
-    // Embed for successful daily claim with footer and timestamp
-    const embed = new EmbedBuilder()
-      .setColor('#02ba11')  // Green color for successful claim
-      .setDescription(`You have claimed your daily reward of **${rewardAmount} dustollarinos**!`)
-      .setFooter({ 
-        text: `Your new balance: ${balances[userId]} dustollarinos`, 
-        //iconURL: interaction.user.displayAvatarURL(),  // Optional: Avatar icon in footer
-      })
-      .setTimestamp();  // Adds a timestamp to the embed
-
-    await interaction.reply({ embeds: [embed] });
-    console.log(`[DAILY] ${interaction.user.tag} claimed their daily reward.`);
   },
 };

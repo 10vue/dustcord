@@ -1,18 +1,15 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { Client } = require('pg');  // Import pg client
 
-// Path to balances.json file
-const balancesFilePath = path.join(__dirname, '../data/balances.json');
+// Initialize PostgreSQL client with the DATABASE_URL from Heroku
+const pgClient = new Client({
+  connectionString: process.env.DATABASE_URL,  // Heroku's Postgres URL stored in .env
+  ssl: {
+    rejectUnauthorized: false,  // Required for Heroku Postgres
+  },
+});
 
-// Function to read balances from the JSON file
-function readBalances() {
-  if (fs.existsSync(balancesFilePath)) {
-    return JSON.parse(fs.readFileSync(balancesFilePath, 'utf8'));
-  } else {
-    return {};
-  }
-}
+pgClient.connect();  // Connect to the database
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,113 +21,114 @@ module.exports = {
         .setRequired(true)),
 
   async execute(interaction) {
-    let balances = readBalances();
     const userId = interaction.user.id;
     const betAmount = interaction.options.getInteger('bet');
 
-    if (!balances[userId]) {
-      balances[userId] = 0;
-    }
+    try {
+      // Query the user's balance from the database
+      const balanceRes = await pgClient.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
 
-    const userBalance = balances[userId];
+      let userBalance = balanceRes.rows.length ? balanceRes.rows[0].balance : 0;
 
-    // Check if the user has enough dustollarinos to bet
-    if (userBalance < betAmount || betAmount <= 0) {
-      return interaction.reply({ content: 'You do not have enough dustollarinos to make this bet!' });
-    }
-
-    // Decrease the user's balance by the bet amount
-    balances[userId] -= betAmount;
-    fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
-
-    // dustollarino flip embed: dustollarino is in the air
-    const dustollarinoFlipEmbed = new EmbedBuilder()
-      .setColor('#e3c207')  // dustollarino in the air color
-      .setTitle('The dustollarino is in the air! Call it!')
-      .setDescription(`Bet: **${betAmount} dustollarinos**`);
-
-    const row = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('heads')
-          .setLabel('Heads')
-          .setStyle(ButtonStyle.Success), // Green for Heads
-        new ButtonBuilder()
-          .setCustomId('tails')
-          .setLabel('Tails')
-          .setStyle(ButtonStyle.Success) // Green for Tails
-      );
-
-    // Defer the reply so we can send a follow-up
-    await interaction.deferReply();
-
-    // Send the dustollarino flip message with buttons
-    await interaction.editReply({
-      embeds: [dustollarinoFlipEmbed],
-      components: [row]
-    });
-
-    // Define filter to ensure only the user who started the dustollarinoflip can interact
-    const filter = (buttonInteraction) => buttonInteraction.user.id === interaction.user.id;
-
-    // Set up collector for Heads/Tails choice
-    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 10000 });
-
-    collector.on('collect', async (choiceInteraction) => {
-      const userChoice = choiceInteraction.customId;
-      const dustollarinoFlip = Math.random() < 0.5 ? 'heads' : 'tails';
-
-      let resultMessage;
-      let resultColor;
-      let amountWonLost = 0;
-
-      // Determine win or lose
-      if (dustollarinoFlip === userChoice) {
-        balances[userId] += betAmount * 2; // Double the bet amount for win
-        resultMessage = `You flipped **${dustollarinoFlip}** and won!`;
-        resultColor = '#02ba11'; // Green for win
-        amountWonLost = betAmount * 2; // Amount won
-      } else {
-        resultMessage = `You flipped **${dustollarinoFlip}** and lost!`;
-        resultColor = '#ba0230'; // Red for loss
-        amountWonLost = -betAmount; // Amount lost
+      // Check if the user has enough dustollarinos to bet
+      if (userBalance < betAmount || betAmount <= 0) {
+        return interaction.reply({ content: 'You do not have enough dustollarinos to make this bet!' });
       }
 
-      // Save updated balance to the file
-      fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
+      // Decrease the user's balance by the bet amount
+      userBalance -= betAmount;
 
-      // Get the timestamp of the transaction
-      const timestamp = new Date().toLocaleString('en-US', { timeZone: 'Pacific/Auckland' });
+      // dustollarino flip embed: dustollarino is in the air
+      const dustollarinoFlipEmbed = new EmbedBuilder()
+        .setColor('#e3c207')  // dustollarino in the air color
+        .setTitle('The dustollarino is in the air! Call it!')
+        .setDescription(`Bet: **${betAmount} dustollarinos**`);
 
-      // Send result message and disable buttons (public)
-      await choiceInteraction.update({
-        embeds: [new EmbedBuilder()
-          .setColor(resultColor)
-          .setDescription(`${resultMessage} You now have **${balances[userId]} dustollarinos**.`)
-          .setFooter({ text: `New balance: ${balances[userId]} dustollarinos.` })
-          .setTimestamp()
-        ],
-        components: [],
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('heads')
+            .setLabel('Heads')
+            .setStyle(ButtonStyle.Success), // Green for Heads
+          new ButtonBuilder()
+            .setCustomId('tails')
+            .setLabel('Tails')
+            .setStyle(ButtonStyle.Success) // Green for Tails
+        );
+
+      // Defer the reply so we can send a follow-up
+      await interaction.deferReply();
+
+      // Send the dustollarino flip message with buttons
+      await interaction.editReply({
+        embeds: [dustollarinoFlipEmbed],
+        components: [row]
       });
 
-      collector.stop();
-    });
+      // Define filter to ensure only the user who started the flip can interact
+      const filter = (buttonInteraction) => buttonInteraction.user.id === interaction.user.id;
 
-    collector.on('end', async (collected, reason) => {
-      if (reason === 'time') {
-        balances[userId] = Math.max(balances[userId] - 1, 0);  // Penalize the user by 1 dustollarino if they don't respond in time
-        fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
+      // Set up collector for Heads/Tails choice
+      const collector = interaction.channel.createMessageComponentCollector({ filter, time: 10000 });
 
-        await interaction.editReply({
+      collector.on('collect', async (choiceInteraction) => {
+        const userChoice = choiceInteraction.customId;
+        const dustollarinoFlip = Math.random() < 0.5 ? 'heads' : 'tails';
+
+        let resultMessage;
+        let resultColor;
+        let amountWonLost = 0;
+
+        // Determine win or lose
+        if (dustollarinoFlip === userChoice) {
+          userBalance += betAmount * 2;  // Double the bet amount for win
+          resultMessage = `You flipped **${dustollarinoFlip}** and won!`;
+          resultColor = '#02ba11';  // Green for win
+          amountWonLost = betAmount * 2;  // Amount won
+        } else {
+          resultMessage = `You flipped **${dustollarinoFlip}** and lost!`;
+          resultColor = '#ba0230';  // Red for loss
+          amountWonLost = -betAmount;  // Amount lost
+        }
+
+        // Update the user's balance in the database
+        await pgClient.query('INSERT INTO balances (user_id, balance) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET balance = $2', [userId, userBalance]);
+
+        // Send result message and disable buttons
+        await choiceInteraction.update({
           embeds: [new EmbedBuilder()
-            .setColor('#000000')
-            .setDescription(`You didn't call it in time... The dustollarino rolled into a sewer grate and you lost 1 dustollarino. You now have **${balances[userId]} dustollarinos**.`)
-            .setFooter({ text: `New balance: ${balances[userId]} dustollarinos.` })
+            .setColor(resultColor)
+            .setDescription(`${resultMessage} You now have **${userBalance} dustollarinos**.`)
+            .setFooter({ text: `New balance: ${userBalance} dustollarinos.` })
             .setTimestamp()
           ],
           components: [],
         });
-      }
-    });
+
+        collector.stop();
+      });
+
+      collector.on('end', async (collected, reason) => {
+        if (reason === 'time') {
+          // Deduct 1 dustollarino for timeout penalty
+          userBalance = Math.max(userBalance - 1, 0);
+          await pgClient.query('UPDATE balances SET balance = $2 WHERE user_id = $1', [userId, userBalance]);
+
+          await interaction.editReply({
+            embeds: [new EmbedBuilder()
+              .setColor('#000000')
+              .setDescription(`You didn't call it in time... The dustollarino rolled into a sewer grate and you lost 1 dustollarino. You now have **${userBalance} dustollarinos**.`)
+              .setFooter({ text: `New balance: ${userBalance} dustollarinos.` })
+              .setTimestamp()
+            ],
+            components: [],
+          });
+        }
+      });
+
+    } catch (error) {
+      console.error(error);
+      await interaction.reply({ content: 'There was an error processing your bet. Please try again later.' });
+    }
   },
 };

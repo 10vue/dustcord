@@ -1,6 +1,13 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js'); 
-const fs = require('fs');
-const path = require('path');
+const { Client } = require('pg');  // PostgreSQL client
+
+// Initialize PostgreSQL client
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,  // Database URL from Heroku config vars
+  ssl: {
+    rejectUnauthorized: false,  // Use this for Heroku SSL connection
+  },
+});
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -8,36 +15,31 @@ module.exports = {
     .setDescription('View the top users with the highest balance'),
 
   async execute(interaction) {
-    const userId = interaction.user.id;
-    const balancesPath = path.join(__dirname, '../data/balances.json');
-    let balances = {};
+    await client.connect(); // Connect to the database
 
-    // Check if the balances file exists, and if not, create it
+    // Query the balances table to get all users and their balances
+    let balances = [];
     try {
-      balances = JSON.parse(fs.readFileSync(balancesPath));
+      const res = await client.query('SELECT user_id, balance FROM balances ORDER BY balance DESC LIMIT 10');
+      balances = res.rows;  // Get the rows from the query
     } catch (error) {
-      console.error('Error reading balances file:', error);
-      return interaction.reply('No balance data available.');
+      console.error('Error fetching balances from database:', error);
+      return interaction.reply('Unable to fetch leaderboard data at this time.');
     }
 
-    // Sort the users by their balances in descending order
-    const sortedBalances = Object.entries(balances)
-      .sort(([, a], [, b]) => b - a) // Sort by balance (descending)
-      .slice(0, 10); // Get top 10 users
-
     // Format the leaderboard
-    if (sortedBalances.length === 0) {
+    if (balances.length === 0) {
       return interaction.reply('No leaderboard data available.');
     }
 
     // Fetch user names (display names) and prepare the leaderboard content
-    const leaderboardPromises = sortedBalances.map(async ([userId, balance], index) => {
+    const leaderboardPromises = balances.map(async (row, index) => {
       try {
-        const user = await interaction.client.users.fetch(userId);  // Fetch user details
-        return `${index + 1}. ${user.displayName} - ${balance} dustollarinos`; // Use displayName instead of username
+        const user = await interaction.client.users.fetch(row.user_id);  // Fetch user details
+        return `${index + 1}. ${user.displayName} - ${row.balance} dustollarinos`; // Use displayName instead of username
       } catch (error) {
-        console.error(`[ERROR] Could not fetch user: ${userId}`, error);
-        return `${index + 1}. Unknown User - ${balance} dustollarinos`; // Fallback if user can't be fetched
+        console.error(`[ERROR] Could not fetch user: ${row.user_id}`, error);
+        return `${index + 1}. Unknown User - ${row.balance} dustollarinos`; // Fallback if user can't be fetched
       }
     });
 
@@ -52,11 +54,14 @@ module.exports = {
       .setFooter({ text: 'Keep earning dustollarinos to climb the leaderboard!' });
 
     // Check if the user is in the top 10, and find their position if they are not
-    let userRankMessage = '';
-    const userRank = Object.entries(balances).sort(([, a], [, b]) => b - a).findIndex(([uid]) => uid === userId) + 1;
+    const userId = interaction.user.id;  // Get the user ID
+    const userRank = balances.findIndex(row => row.user_id === userId) + 1;
 
-    if (userRank > 10) {
-      userRankMessage = `\nYour current rank is **#${userRank}** with **${balances[userId]} dustollarinos**. Keep going!`;
+    let userRankMessage = '';
+    if (userRank > 10 && userRank !== 0) {
+      userRankMessage = `\nYour current rank is **#${userRank}** with **${balances[userRank - 1].balance} dustollarinos**. Keep going!`;
+    } else if (userRank === 0) {
+      userRankMessage = `\nYou have not earned any dustollarinos yet!`;
     }
 
     // Send the leaderboard embed along with the user's rank message if necessary
@@ -64,5 +69,7 @@ module.exports = {
       embeds: [leaderboardEmbed],
       content: userRankMessage
     });
+
+    await client.end(); // Close the database connection
   },
 };

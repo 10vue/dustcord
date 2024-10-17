@@ -1,14 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { Client } = require('pg');  // PostgreSQL client
 
-// Define the path to your balances file
-const balancesFilePath = path.join(__dirname, '../data', 'balances.json');
-
-// Check if the balances file exists, if not, create it
-if (!fs.existsSync(balancesFilePath)) {
-  fs.writeFileSync(balancesFilePath, JSON.stringify({}), 'utf8');
-}
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,  // Database URL from Heroku config vars
+  ssl: {
+    rejectUnauthorized: false,  // Use this for Heroku SSL connection
+  },
+});
 
 let lotteryInProgress = false;  // Flag to track if a lottery is in progress
 let hostMessage = null;  // Store the current host message for updating
@@ -17,12 +15,12 @@ let totalBets = 0;  // Total bet amount
 let countdownTimer = 30;  // Countdown timer for the lottery
 
 // Function to check if a user has enough balance to place a bet
-function canUserBet(userId, betAmount) {
+async function canUserBet(userId, betAmount) {
   try {
-    let balances = JSON.parse(fs.readFileSync(balancesFilePath, 'utf8'));
-    return balances[userId] >= betAmount;
+    const res = await client.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
+    return res.rows.length > 0 && res.rows[0].balance >= betAmount;
   } catch (error) {
-    console.error('Error reading balances file:', error);
+    console.error('Error checking user balance:', error);
     return false;
   }
 }
@@ -67,21 +65,21 @@ async function startLottery(interaction, betAmount = 0, userId = null) {
 
   // Start the countdown timer
   let countdown = countdownTimer;
-  const countdownInterval = setInterval(() => {
+  const countdownInterval = setInterval(async () => {
     if (countdown <= 0) {
       clearInterval(countdownInterval);
       if (bets.size >= 2) {
-        spinWheel(interaction);  // Spin the wheel when the countdown ends
+        await spinWheel(interaction);  // Spin the wheel when the countdown ends
       } else {
         // If less than 2 participants, refund bets and reset the lottery
-        refundBets();
+        await refundBets();
         interaction.channel.send('You need 2 participants to play.');
         updateHostMessage('Lottery canceled due to insufficient participants.', '#000000');
         resetLottery();
       }
     } else {
       // Update the host message with the countdown
-      hostMessage.edit({
+      await hostMessage.edit({
         embeds: [new EmbedBuilder()
           .setTitle('Lottery is about to start!')
           .setColor('#e3c207')  // Set color to #e3c207
@@ -99,21 +97,14 @@ async function startLottery(interaction, betAmount = 0, userId = null) {
 // Function to handle placing a bet
 async function placeBet(interaction, betAmount) {
   const userId = interaction.user.id;
-  let balances = JSON.parse(fs.readFileSync(balancesFilePath, 'utf8'));
 
   // Check if the user has enough balance to place the bet
-  if (!canUserBet(userId, betAmount)) {
+  if (!await canUserBet(userId, betAmount)) {
     return interaction.reply(`You don't have enough balance to place a bet of **${betAmount} dustollarinos**.`);
   }
 
-  // Deduct the bet amount from the user's balance
-  balances[userId] -= betAmount;
-  try {
-    fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
-  } catch (error) {
-    console.error('Error writing to balances file:', error);
-    return interaction.reply('An error occurred while updating your balance. Please try again.');
-  }
+  // Deduct the bet amount from the user's balance in the database
+  await client.query('UPDATE balances SET balance = balance - $1 WHERE user_id = $2', [betAmount, userId]);
 
   // If this is the first bet, start the lottery
   if (!lotteryInProgress) {
@@ -163,19 +154,16 @@ async function spinWheel(interaction) {
     }
   }
 
-  const winnerBet = bets.get(winnerId);
   const totalPrize = totalBets;
 
-  // Award the winner
-  let balances = JSON.parse(fs.readFileSync(balancesFilePath, 'utf8'));
-  balances[winnerId] += totalPrize;
-  fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
+  // Award the winner by updating their balance in the database
+  await client.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [totalPrize, winnerId]);
 
   // Announce the winner
   const winnerUser = await interaction.client.users.fetch(winnerId);
   const winnerEmbed = new EmbedBuilder()
     .setColor('#000000')  // Set color to black
-    .setDescription(`${winnerUser.username} won the lottery with a bet of **${winnerBet} dustollarinos**! They win **${totalPrize} dustollarinos**.`);
+    .setDescription(`${winnerUser.username} won the lottery with a bet of **${bets.get(winnerId)} dustollarinos**! They win **${totalPrize} dustollarinos**.`);
 
   await interaction.channel.send({ embeds: [winnerEmbed] });
 
@@ -185,12 +173,10 @@ async function spinWheel(interaction) {
 }
 
 // Refund all bets if there aren't enough participants
-function refundBets() {
-  let balances = JSON.parse(fs.readFileSync(balancesFilePath, 'utf8'));
+async function refundBets() {
   for (const [userId, betAmount] of bets) {
-    balances[userId] += betAmount;
+    await client.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [betAmount, userId]);
   }
-  fs.writeFileSync(balancesFilePath, JSON.stringify(balances, null, 2));
 }
 
 // Reset lottery variables for the next round
@@ -202,8 +188,8 @@ function resetLottery() {
 }
 
 // Function to update the host message (win or cancellation)
-function updateHostMessage(description, color) {
-  hostMessage.edit({
+async function updateHostMessage(description, color) {
+  await hostMessage.edit({
     embeds: [new EmbedBuilder()
       .setTitle('Lottery has ended')
       .setColor(color)  // Set color to black for end state
@@ -228,9 +214,12 @@ module.exports = {
         .setDescription('The amount you want to bet on the lottery')
         .setRequired(true)),
   async execute(interaction) {
+    await client.connect(); // Connect to the database
     const betAmount = interaction.options.getInteger('bet');
     const userId = interaction.user.id;
 
-    placeBet(interaction, betAmount); // Place the bet and handle lottery flow
+    await placeBet(interaction, betAmount); // Place the bet and handle lottery flow
+
+    await client.end(); // Close the database connection
   },
 };
