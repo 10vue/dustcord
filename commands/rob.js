@@ -24,19 +24,19 @@ module.exports = {
 
     // Get the current time in the desired timezone (set via environment variable)
     const timezone = process.env.TIMEZONE || 'Pacific/Auckland'; // Default to Pacific/Auckland if TIMEZONE isn't set
-    const currentTime = moment().tz(timezone).valueOf(); // Get the current time in the specified timezone
+    const currentTime = moment().tz(timezone); // Get the current time in the specified timezone
 
-    const oneHour = 3600000; // 1 hour in milliseconds
+    const oneHour = moment.duration(1, 'hours'); // Duration of one hour
 
     try {
       // Query last rob attempt time from the database
       const lastRobRes = await pgClient.query('SELECT last_rob_time FROM last_rob_times WHERE user_id = $1', [userId]);
-      const lastRobTime = lastRobRes.rows.length ? moment(lastRobRes.rows[0].last_rob_time).tz(timezone).valueOf() : 0;
+      const lastRobTime = lastRobRes.rows.length ? moment(lastRobRes.rows[0].last_rob_time).tz(timezone) : null;
 
-      const timeSinceLastRob = currentTime - lastRobTime;
+      const timeSinceLastRob = lastRobTime ? currentTime.diff(lastRobTime) : null; // Difference in milliseconds
 
-      if (timeSinceLastRob < oneHour) {
-        const timeRemaining = Math.ceil((oneHour - timeSinceLastRob) / 60000); // Convert remaining time to minutes
+      if (timeSinceLastRob && timeSinceLastRob < oneHour.asMilliseconds()) {
+        const timeRemaining = Math.ceil((oneHour.asMilliseconds() - timeSinceLastRob) / 60000); // Convert remaining time to minutes
         return interaction.editReply({
           content: `You need to wait ${timeRemaining} more minutes before trying to rob again!`,
           ephemeral: true,
@@ -46,7 +46,7 @@ module.exports = {
       // Update the last rob attempt time
       await pgClient.query(
         'INSERT INTO last_rob_times (user_id, last_rob_time) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET last_rob_time = $2',
-        [userId, new Date(currentTime)]
+        [userId, currentTime.toDate()] // Store current time as a Date object
       );
 
       // Query target user balance
