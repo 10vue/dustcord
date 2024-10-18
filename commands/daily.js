@@ -1,22 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { Client } = require('pg');  // Import pg client
 
-// Initialize PostgreSQL client with the DATABASE_URL from Heroku
-const pgClient = new Client({
-  connectionString: process.env.DATABASE_URL,  // Heroku's Postgres URL stored in .env
-  ssl: {
-    rejectUnauthorized: false,  // Required for Heroku Postgres
-  },
-});
-
-pgClient.connect();  // Connect to the database
-
+// Daily command to claim rewards
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('daily')
     .setDescription('Claim your daily reward'),
 
-  async execute(interaction) {
+  async execute(interaction, pgClient) { // Accept pgClient as a parameter
     const userId = interaction.user.id;
 
     const now = new Date();

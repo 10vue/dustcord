@@ -14,25 +14,32 @@ async function loadCommands(client) {
   console.log('Successfully loaded application commands.');
 }
 
-// Function to handle interactions (slash commands)
-async function handleInteraction(interaction) {
+// Handle interactions (slash commands)
+client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
 
-  const { commandName } = interaction;
-  const command = interaction.client.commands.get(commandName);
+  const command = client.commands.get(interaction.commandName);
 
   if (!command) {
-    console.error(`[ERROR] Command not found: ${commandName}`);
-    return;
+    console.error(`No command matching ${interaction.commandName} was found.`);
+    return interaction.reply({
+      content: "This command does not exist.",
+      ephemeral: true,
+    });
   }
 
   try {
-    // Execute the command
-    await command.execute(interaction);
+    console.log(
+      `[COMMAND EXECUTION] ${interaction.user.tag} is executing the ${interaction.commandName} command.`
+    );
+    await command.execute(interaction, pgClient); // Pass pgClient to the command
   } catch (error) {
-    console.error(`[ERROR] Error executing command ${commandName}:`, error);
-    await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+    console.error(`Error executing command: ${interaction.commandName}`, error);
+    await interaction.reply({
+      content: "There was an error while executing this command.",
+      ephemeral: true,
+    });
   }
-}
+});
 
 module.exports = { loadCommands, handleInteraction };

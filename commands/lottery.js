@@ -1,12 +1,4 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { Client } = require('pg');  // PostgreSQL client
-
-const client = new Client({
-  connectionString: process.env.DATABASE_URL,  // Database URL from Heroku config vars
-  ssl: {
-    rejectUnauthorized: false,  // Use this for Heroku SSL connection
-  },
-});
 
 let lotteryInProgress = false;  // Flag to track if a lottery is in progress
 let hostMessage = null;  // Store the current host message for updating
@@ -15,9 +7,9 @@ let totalBets = 0;  // Total bet amount
 let countdownTimer = 30;  // Countdown timer for the lottery
 
 // Function to check if a user has enough balance to place a bet
-async function canUserBet(userId, betAmount) {
+async function canUserBet(pgClient, userId, betAmount) {
   try {
-    const res = await client.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
+    const res = await pgClient.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
     return res.rows.length > 0 && res.rows[0].balance >= betAmount;
   } catch (error) {
     console.error('Error checking user balance:', error);
@@ -26,7 +18,7 @@ async function canUserBet(userId, betAmount) {
 }
 
 // Start a new lottery (this will be triggered when the first bet is placed)
-async function startLottery(interaction, betAmount = 0, userId = null) {
+async function startLottery(interaction, pgClient, betAmount = 0, userId = null) {
   if (lotteryInProgress) {
     return interaction.reply('A lottery is already in progress. Please wait until it ends.');
   }
@@ -69,10 +61,10 @@ async function startLottery(interaction, betAmount = 0, userId = null) {
     if (countdown <= 0) {
       clearInterval(countdownInterval);
       if (bets.size >= 2) {
-        await spinWheel(interaction);  // Spin the wheel when the countdown ends
+        await spinWheel(interaction, pgClient);  // Spin the wheel when the countdown ends
       } else {
         // If less than 2 participants, refund bets and reset the lottery
-        await refundBets();
+        await refundBets(pgClient);
         interaction.channel.send('You need 2 participants to play.');
         updateHostMessage('Lottery canceled due to insufficient participants.', '#000000');
         resetLottery();
@@ -95,20 +87,20 @@ async function startLottery(interaction, betAmount = 0, userId = null) {
 }
 
 // Function to handle placing a bet
-async function placeBet(interaction, betAmount) {
+async function placeBet(interaction, pgClient, betAmount) {
   const userId = interaction.user.id;
 
   // Check if the user has enough balance to place the bet
-  if (!await canUserBet(userId, betAmount)) {
+  if (!await canUserBet(pgClient, userId, betAmount)) {
     return interaction.reply(`You don't have enough balance to place a bet of **${betAmount} dustollarinos**.`);
   }
 
   // Deduct the bet amount from the user's balance in the database
-  await client.query('UPDATE balances SET balance = balance - $1 WHERE user_id = $2', [betAmount, userId]);
+  await pgClient.query('UPDATE balances SET balance = balance - $1 WHERE user_id = $2', [betAmount, userId]);
 
   // If this is the first bet, start the lottery
   if (!lotteryInProgress) {
-    startLottery(interaction, betAmount, userId);
+    startLottery(interaction, pgClient, betAmount, userId);
   } else {
     // If the lottery is in progress, accumulate the bet to the user's total bet
     if (bets.has(userId)) {
@@ -135,7 +127,7 @@ async function placeBet(interaction, betAmount) {
 }
 
 // Function to calculate the winner by weighted random pick
-async function spinWheel(interaction) {
+async function spinWheel(interaction, pgClient) {
   // Calculate total bets and weighted chances
   const userIds = [...bets.keys()];
   const weights = userIds.map(userId => bets.get(userId));
@@ -157,7 +149,7 @@ async function spinWheel(interaction) {
   const totalPrize = totalBets;
 
   // Award the winner by updating their balance in the database
-  await client.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [totalPrize, winnerId]);
+  await pgClient.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [totalPrize, winnerId]);
 
   // Announce the winner
   const winnerUser = await interaction.client.users.fetch(winnerId);
@@ -173,9 +165,9 @@ async function spinWheel(interaction) {
 }
 
 // Refund all bets if there aren't enough participants
-async function refundBets() {
+async function refundBets(pgClient) {
   for (const [userId, betAmount] of bets) {
-    await client.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [betAmount, userId]);
+    await pgClient.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [betAmount, userId]);
   }
 }
 
@@ -213,13 +205,10 @@ module.exports = {
       option.setName('bet')
         .setDescription('The amount you want to bet on the lottery')
         .setRequired(true)),
-  async execute(interaction) {
-    await client.connect(); // Connect to the database
+  async execute(interaction, pgClient) {
     const betAmount = interaction.options.getInteger('bet');
     const userId = interaction.user.id;
 
-    await placeBet(interaction, betAmount); // Place the bet and handle lottery flow
-
-    await client.end(); // Close the database connection
+    await placeBet(interaction, pgClient, betAmount); // Place the bet and handle lottery flow
   },
 };

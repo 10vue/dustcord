@@ -1,15 +1,4 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { Client } = require('pg');  // Import pg client
-
-// Initialize PostgreSQL client with the DATABASE_URL from Heroku
-const pgClient = new Client({
-  connectionString: process.env.DATABASE_URL,  // Heroku's Postgres URL stored in .env
-  ssl: {
-    rejectUnauthorized: false,  // Required for Heroku Postgres
-  },
-});
-
-pgClient.connect();  // Connect to the database
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,7 +9,7 @@ module.exports = {
         .setDescription('Amount to bet')
         .setRequired(true)),
 
-  async execute(interaction) {
+  async execute(interaction, pgClient) { // Accept pgClient as a parameter
     const userId = interaction.user.id;
     const betAmount = interaction.options.getInteger('bet');
 
@@ -77,18 +66,15 @@ module.exports = {
 
         let resultMessage;
         let resultColor;
-        let amountWonLost = 0;
 
         // Determine win or lose
         if (dustollarinoFlip === userChoice) {
           userBalance += betAmount * 2;  // Double the bet amount for win
           resultMessage = `You flipped **${dustollarinoFlip}** and won!`;
           resultColor = '#02ba11';  // Green for win
-          amountWonLost = betAmount * 2;  // Amount won
         } else {
           resultMessage = `You flipped **${dustollarinoFlip}** and lost!`;
           resultColor = '#ba0230';  // Red for loss
-          amountWonLost = -betAmount;  // Amount lost
         }
 
         // Update the user's balance in the database

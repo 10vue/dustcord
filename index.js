@@ -1,11 +1,5 @@
-const {
-  Client,
-  GatewayIntentBits,
-  REST,
-  Routes,
-  Collection,
-} = require("discord.js");
-
+const { Client, GatewayIntentBits, REST, Routes, Collection } = require("discord.js");
+const { Client: PGClient } = require("pg"); // PostgreSQL client
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config(); // Load .env file
@@ -18,13 +12,18 @@ const client = new Client({
   ],
 });
 
+// Initialize PostgreSQL client globally
+const pgClient = new PGClient({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
 client.commands = new Collection();
 
 // Path to track previously registered commands
-const registeredCommandsFilePath = path.join(
-  __dirname,
-  "registeredCommands.json",
-);
+const registeredCommandsFilePath = path.join(__dirname, "registeredCommands.json");
 
 // Function to load previously registered commands with error handling for invalid JSON
 function loadPreviouslyRegisteredCommands() {
@@ -186,6 +185,14 @@ async function registerNewCommands() {
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
 
+  // Connect to PostgreSQL database
+  try {
+    await pgClient.connect();
+    console.log("Connected to PostgreSQL database.");
+  } catch (error) {
+    console.error("Error connecting to PostgreSQL database:", error);
+  }
+
   // Register new commands only if there are any changes
   await registerNewCommands();
 });
@@ -210,7 +217,7 @@ client.on("interactionCreate", async (interaction) => {
     console.log(
       `[COMMAND EXECUTION] ${interaction.user.tag} is executing the ${interaction.commandName} command.`,
     );
-    await command.execute(interaction);
+    await command.execute(interaction, pgClient); // Pass the pgClient to the command
   } catch (error) {
     console.error(`Error executing command: ${interaction.commandName}`, error);
     await interaction.reply({
@@ -220,19 +227,15 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
-
-// Dynamically load all files in the 'services' folder
+// Load and initialize services (including word game)
 const servicesFolderPath = path.join(__dirname, 'services');
 
-// Read the files in the 'services' folder
+// Read the files in the 'services' folder and initialize each one
 fs.readdirSync(servicesFolderPath).forEach(file => {
-  // Only require .js files
   if (file.endsWith('.js')) {
     const servicePath = path.join(servicesFolderPath, file);
-    require(servicePath)(client);  // Call the service with the client passed in
+    require(servicePath)(client, pgClient);  // Pass both client and pgClient to the service
   }
 });
 
-// Initialize Word Game (or any other services you have)
-const initializeWordGame = require('./services/wordGame');
+client.login(process.env.DISCORD_TOKEN);

@@ -1,30 +1,19 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { Client } = require('pg');  // Import pg client
 
-// Initialize PostgreSQL client with the DATABASE_URL from Heroku
-const pgClient = new Client({
-  connectionString: process.env.DATABASE_URL,  // Heroku's Postgres URL stored in .env
-  ssl: {
-    rejectUnauthorized: false,  // Required for Heroku Postgres
-  },
-});
-
-pgClient.connect();  // Connect to the database
+// Crime outcomes data
+const crimeSuccessMessages = require('../data/crimeOutcomes/crimeSuccess.json');
+const crimeFailMessages = require('../data/crimeOutcomes/crimeFail.json');
+const crimeJackpotMessages = require('../data/crimeOutcomes/crimeJackpot.json');
+const crimeCriticalFailMessages = require('../data/crimeOutcomes/crimeCriticalFail.json');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('crime')
     .setDescription('Commit a crime for money!'),
 
-  async execute(interaction) {
+  async execute(interaction, pgClient) { // Accept pgClient as a parameter
     await interaction.deferReply();
     const userId = interaction.user.id;
-
-    // Crime outcomes data
-    const crimeSuccessMessages = require('../data/crimeOutcomes/crimeSuccess.json');
-    const crimeFailMessages = require('../data/crimeOutcomes/crimeFail.json');
-    const crimeJackpotMessages = require('../data/crimeOutcomes/crimeJackpot.json');
-    const crimeCriticalFailMessages = require('../data/crimeOutcomes/crimeCriticalFail.json');
 
     try {
       // Query user's balance from the database

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js'); 
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { Client } = require('pg');  // PostgreSQL client
 
 // Initialize PostgreSQL client
@@ -15,6 +15,9 @@ module.exports = {
     .setDescription('View the top users with the highest balance'),
 
   async execute(interaction) {
+    // Defer the interaction to prevent timeouts
+    await interaction.deferReply();
+
     await client.connect(); // Connect to the database
 
     // Query the balances table to get all users and their balances
@@ -24,19 +27,19 @@ module.exports = {
       balances = res.rows;  // Get the rows from the query
     } catch (error) {
       console.error('Error fetching balances from database:', error);
-      return interaction.reply('Unable to fetch leaderboard data at this time.');
+      return interaction.editReply('Unable to fetch leaderboard data at this time.');
     }
 
     // Format the leaderboard
     if (balances.length === 0) {
-      return interaction.reply('No leaderboard data available.');
+      return interaction.editReply('No leaderboard data available.');
     }
 
     // Fetch user names (display names) and prepare the leaderboard content
     const leaderboardPromises = balances.map(async (row, index) => {
       try {
         const user = await interaction.client.users.fetch(row.user_id);  // Fetch user details
-        return `${index + 1}. ${user.displayName} - ${row.balance} dustollarinos`; // Use displayName instead of username
+        return `${index + 1}. ${user.username} - ${row.balance} dustollarinos`; // Use username instead of displayName
       } catch (error) {
         console.error(`[ERROR] Could not fetch user: ${row.user_id}`, error);
         return `${index + 1}. Unknown User - ${row.balance} dustollarinos`; // Fallback if user can't be fetched
@@ -65,7 +68,7 @@ module.exports = {
     }
 
     // Send the leaderboard embed along with the user's rank message if necessary
-    await interaction.reply({ 
+    await interaction.editReply({ 
       embeds: [leaderboardEmbed],
       content: userRankMessage
     });
