@@ -1,0 +1,133 @@
+[
+  {
+    "options": [
+      {
+        "name": "user",
+        "description": "The user whose balance you want to check.",
+        "required": false,
+        "type": 6
+      },
+      {
+        "type": 4,
+        "name": "add",
+        "description": "Amount to add to balance (Admin Only).",
+        "required": false
+      },
+      {
+        "type": 4,
+        "name": "remove",
+        "description": "Amount to remove from balance (Admin Only).",
+        "required": false
+      },
+      {
+        "type": 4,
+        "name": "pay",
+        "description": "Amount to pay to another user.",
+        "required": false
+      }
+    ],
+    "name": "balance",
+    "description": "Check your balance, someone else's balance, add or remove balance (Admin Only).",
+    "type": 1
+  },
+  {
+    "options": [
+      {
+        "type": 4,
+        "name": "bet",
+        "description": "Amount to bet",
+        "required": true
+      }
+    ],
+    "name": "coinflip",
+    "description": "Bet on a coin flip!",
+    "type": 1
+  },
+  {
+    "options": [],
+    "name": "crime",
+    "description": "Commit a crime for money!",
+    "type": 1
+  },
+  {
+    "options": [],
+    "name": "daily",
+    "description": "Claim your daily reward",
+    "type": 1
+  },
+  {
+    "options": [],
+    "name": "dustin",
+    "description": "Sends a random image from dustin's folder!",
+    "type": 1
+  },
+  {
+    "options": [],
+    "name": "leaderboard",
+    "description": "View the top users with the highest balance",
+    "type": 1
+  },
+  {
+    "options": [
+      {
+        "type": 4,
+        "name": "bet",
+        "description": "The amount you want to bet on the lottery",
+        "required": true
+      }
+    ],
+    "name": "lottery",
+    "description": "Start or participate in a lottery.",
+    "type": 1
+  },
+  {
+    "options": [],
+    "name": "risk",
+    "description": "Shows the success chances of all commands.",
+    "type": 1
+  },
+  {
+    "options": [
+      {
+        "name": "target",
+        "description": "The user you want to rob",
+        "required": true,
+        "type": 6
+      },
+      {
+        "type": 4,
+        "name": "amount",
+        "description": "The amount of dustollarinos you want to steal",
+        "required": true
+      }
+    ],
+    "name": "rob",
+    "description": "Attempt to rob another user.",
+    "type": 1
+  },
+  {
+    "options": [
+      {
+        "type": 4,
+        "name": "bet",
+        "description": "Amount to bet on the slots.",
+        "required": true
+      }
+    ],
+    "name": "slots",
+    "description": "Play the slots!",
+    "type": 1
+  },
+  {
+    "options": [],
+    "name": "slut",
+    "description": "Try your luck for dustollarinos!",
+    "type": 1
+  },
+  {
+    "options": [],
+    "name": "work",
+    "description": "Do some work and earn dustollarinos!",
+    "type": 1
+  }
+]
