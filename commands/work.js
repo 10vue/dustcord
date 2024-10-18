@@ -21,13 +21,16 @@ module.exports = {
       if (now < expirationTime) {
         const timeLeft = expirationTime - now; // Time left in milliseconds
 
-        // Convert milliseconds to minutes and seconds
-        const minutes = Math.floor((timeLeft / 1000) / 60);
-        const seconds = Math.floor((timeLeft / 1000) % 60);
+        // Convert milliseconds to full minutes
+        const minutesLeft = Math.ceil(timeLeft / 60000); // Convert to minutes and round up
 
+        // Singular or plural "minute"
+        const minuteText = minutesLeft === 1 ? 'minute' : 'minutes';
+
+        // Reply with the cooldown message
         return interaction.reply({
-          content: `Please wait ${minutes} minute(s) and ${seconds} second(s) before using this command again.`,
-          ephemeral: true, // Send the reply as ephemeral (only visible to the user)
+          content: `You need to wait ${minutesLeft} more ${minuteText} before working again!`,
+          ephemeral: false, // Message is visible to everyone
         });
       }
     }

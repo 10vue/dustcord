@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const moment = require('moment-timezone'); // Import moment-timezone
 
 // Slut outcomes data
 const successMessages = require('../data/slutOutcomes/slutSuccess.json');
@@ -15,14 +16,17 @@ module.exports = {
     await interaction.deferReply(); // Defer the reply for better user experience
     const userId = interaction.user.id;
 
+    // Get the current time in the desired timezone (set via environment variable)
+    const timezone = process.env.TIMEZONE || 'UTC'; // Default to UTC if TIMEZONE isn't set
+    const currentTime = moment().tz(timezone).valueOf(); // Get the current time in the specified timezone
+
+    const oneHour = 3600000; // 1 hour in milliseconds
+
     try {
       // Query last attempt time from the database
       const lastSlutRes = await pgClient.query('SELECT last_slut_time FROM last_slut_times WHERE user_id = $1', [userId]);
-      let lastSlutTime = lastSlutRes.rows.length ? new Date(lastSlutRes.rows[0].last_slut_time).getTime() : 0;
+      let lastSlutTime = lastSlutRes.rows.length ? moment(lastSlutRes.rows[0].last_slut_time).tz(timezone).valueOf() : 0;
 
-      // Cooldown logic: one hour (3600000 milliseconds)
-      const currentTime = Date.now();
-      const oneHour = 3600000; // 1 hour in milliseconds
       const timeSinceLastAttempt = currentTime - lastSlutTime;
 
       if (timeSinceLastAttempt < oneHour) {
@@ -107,7 +111,7 @@ module.exports = {
         .setColor(embedColor)
         .setDescription(responseMessage)
         .setTimestamp()
-        .setFooter({ text: `Your balance: ${userBalance} dustollarinos` }); // Use userBalance directly
+        .setFooter({ text: `Your balance: ${userBalance} dustollarinos` });
 
       // Send the embed response (use `editReply` after defer)
       await interaction.editReply({ embeds: [embed] });

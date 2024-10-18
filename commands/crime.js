@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const moment = require('moment-timezone');
 
 // Crime outcomes data
 const crimeSuccessMessages = require('../data/crimeOutcomes/crimeSuccess.json');
@@ -6,12 +7,15 @@ const crimeFailMessages = require('../data/crimeOutcomes/crimeFail.json');
 const crimeJackpotMessages = require('../data/crimeOutcomes/crimeJackpot.json');
 const crimeCriticalFailMessages = require('../data/crimeOutcomes/crimeCriticalFail.json');
 
+// Load TIMEZONE from environment variables (Heroku config)
+const TIMEZONE = process.env.TIMEZONE || 'UTC'; // Default to UTC if not set
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('crime')
     .setDescription('Commit a crime for money!'),
 
-  async execute(interaction, pgClient) { // Accept pgClient as a parameter
+  async execute(interaction, pgClient) {
     await interaction.deferReply();
     const userId = interaction.user.id;
 
@@ -22,7 +26,14 @@ module.exports = {
 
       // Query last crime time from the database
       const lastCrimeRes = await pgClient.query('SELECT last_crime_time FROM last_crime_times WHERE user_id = $1', [userId]);
-      let lastCrimeTime = lastCrimeRes.rows.length ? new Date(lastCrimeRes.rows[0].last_crime_time).getTime() : 0;
+      let lastCrimeTime = lastCrimeRes.rows.length ? lastCrimeRes.rows[0].last_crime_time : null;
+
+      if (lastCrimeTime) {
+        // Convert the last crime time from UTC to the specified TIMEZONE
+        lastCrimeTime = moment(lastCrimeTime).tz(TIMEZONE).valueOf(); // Convert to timestamp in milliseconds
+      } else {
+        lastCrimeTime = 0; // No crime committed yet
+      }
 
       // Cooldown logic: one hour (3600000 milliseconds)
       const currentTime = Date.now();
@@ -37,10 +48,10 @@ module.exports = {
         });
       }
 
-      // Update the last crime time
+      // Update the last crime time to the current time in UTC
       lastCrimeTime = currentTime;
 
-      // Save the updated last crime time in the database
+      // Save the updated last crime time in the database (UTC)
       await pgClient.query(
         'INSERT INTO last_crime_times (user_id, last_crime_time) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET last_crime_time = $2',
         [userId, new Date(lastCrimeTime)]
