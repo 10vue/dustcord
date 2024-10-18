@@ -8,7 +8,7 @@ const crimeJackpotMessages = require('../data/crimeOutcomes/crimeJackpot.json');
 const crimeCriticalFailMessages = require('../data/crimeOutcomes/crimeCriticalFail.json');
 
 // Load TIMEZONE from environment variables (Heroku config)
-const TIMEZONE = process.env.TIMEZONE || 'UTC'; // Default to UTC if not set
+const TIMEZONE = process.env.TIMEZONE || 'Pacific/Auckland'; // Default to 'Pacific/Auckland' if not set
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -30,7 +30,7 @@ module.exports = {
 
       if (lastCrimeTime) {
         // Convert the last crime time from UTC to the specified TIMEZONE
-        lastCrimeTime = moment(lastCrimeTime).tz(TIMEZONE).valueOf(); // Convert to timestamp in milliseconds
+        lastCrimeTime = moment.tz(lastCrimeTime, TIMEZONE).valueOf(); // Convert to timestamp in milliseconds
       } else {
         lastCrimeTime = 0; // No crime committed yet
       }
@@ -54,7 +54,7 @@ module.exports = {
       // Save the updated last crime time in the database (UTC)
       await pgClient.query(
         'INSERT INTO last_crime_times (user_id, last_crime_time) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET last_crime_time = $2',
-        [userId, new Date(lastCrimeTime)]
+        [userId, new Date(lastCrimeTime).toISOString()] // Store in UTC format
       );
 
       // Generate random outcome

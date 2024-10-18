@@ -17,7 +17,7 @@ module.exports = {
     const userId = interaction.user.id;
 
     // Get the current time in the desired timezone (set via environment variable)
-    const timezone = process.env.TIMEZONE || 'UTC'; // Default to UTC if TIMEZONE isn't set
+    const timezone = process.env.TIMEZONE || 'Pacific/Auckland'; // Default to Pacific/Auckland if TIMEZONE isn't set
     const currentTime = moment().tz(timezone).valueOf(); // Get the current time in the specified timezone
 
     const oneHour = 3600000; // 1 hour in milliseconds
