@@ -33,6 +33,10 @@ module.exports = {
       });
     }
 
+    // Fetch the user's balance from the database
+    const balanceRes = await pgClient.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
+    let userBalance = balanceRes.rows.length ? balanceRes.rows[0].balance : 0;
+
     // Update the last crime time to the current time
     lastCrimeTimes[userId] = currentTime;
 
@@ -45,6 +49,8 @@ module.exports = {
     if (randomChance <= 0.01) {
       // Jackpot (1% chance)
       rewardAmount = Math.floor(Math.random() * (120000 - 80000 + 1)) + 80000; // Random between 80,000 and 120,000
+      userBalance += rewardAmount;
+
       const jackpotMessage = crimeJackpotMessages[Math.floor(Math.random() * crimeJackpotMessages.length)];
       responseMessage = jackpotMessage.replace('{{amount}}', rewardAmount); // Replace the variable with the actual amount
       embedColor = '#e3c207';  // Updated to yellow for jackpot
@@ -53,6 +59,8 @@ module.exports = {
     } else if (randomChance <= 0.20) {
       // Success (19% chance)
       rewardAmount = Math.floor(Math.random() * (3000 - 1500 + 1)) + 1500; // Random between 1,500 and 3,000
+      userBalance += rewardAmount;
+
       const successMessage = crimeSuccessMessages[Math.floor(Math.random() * crimeSuccessMessages.length)];
       responseMessage = successMessage.replace('{{amount}}', rewardAmount); // Replace the variable with the actual amount
       embedColor = '#02ba11';  // Positive outcome (green)
