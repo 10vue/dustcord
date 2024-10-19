@@ -1,11 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const emojis = {    
-  cherry: '🍒',    
-  pineapple: '🍍',    
-  watermelon: '🍉',    
-  grape: '🍇',    
-  deer: '🦌',    
+  cherry: ':cherries:',    
+  pineapple: ':pineapple:',    
+  watermelon: ':watermelon:',    
+  grape: ':grapes:',    
+  deer: ':deer:',    
   leftSide: '<:slotssideL:1296844124908945479>',    
   rightSide: '<:slotssideR:1296844145163374642>', 
   jackpotLeft: '<:jackpotL:1296844171939807234>', 
