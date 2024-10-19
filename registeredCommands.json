@@ -120,6 +120,12 @@
   },
   {
     "options": [],
+    "name": "slots-payouts",
+    "description": "View the slot machine payouts",
+    "type": 1
+  },
+  {
+    "options": [],
     "name": "slut",
     "description": "Try your luck for dustollarinos!",
     "type": 1
