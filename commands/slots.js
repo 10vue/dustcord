@@ -177,13 +177,13 @@ function calculateWinnings(spinResult, betAmount) {
   if (middleEmojis.every(emoji => emoji === middleEmojis[0])) {
     switch (middleEmojis[0]) {
       case emojis.cherry:
-        return Math.floor(betAmount * 15); // 15x payout for 3 cherries
+        return Math.floor(betAmount * 10); // 15x payout for 3 cherries
       case emojis.grape:
-        return Math.floor(betAmount * 25); // 25x payout for 3 grapes
+        return Math.floor(betAmount * 20); // 25x payout for 3 grapes
       case emojis.watermelon:
-        return Math.floor(betAmount * 30); // 30x payout for 3 watermelons
+        return Math.floor(betAmount * 35); // 30x payout for 3 watermelons
       case emojis.pineapple:
-        return Math.floor(betAmount * 50); // 50x payout for 3 pineapples
+        return Math.floor(betAmount * 75); // 50x payout for 3 pineapples
       case emojis.deer:
         const jackpotTotal = getJackpotTotal(pgClient); // Get current jackpot total
         resetJackpot(pgClient); // Reset the jackpot after winning
@@ -199,13 +199,13 @@ function calculateWinnings(spinResult, betAmount) {
       case emojis.cherry:
         return Math.floor(betAmount * 0.5); // 0.5x payout for 2 cherries
       case emojis.grape:
-        return Math.floor(betAmount * 1.5); // 1.5x payout for 2 grapes
+        return Math.floor(betAmount * 1.2); // 1.5x payout for 2 grapes
       case emojis.watermelon:
-        return Math.floor(betAmount * 2); // 2x payout for 2 watermelons
+        return Math.floor(betAmount * 1.5); // 2x payout for 2 watermelons
       case emojis.pineapple:
-        return Math.floor(betAmount * 5); // 5x payout for 2 pineapples
+        return Math.floor(betAmount * 2); // 5x payout for 2 pineapples
       case emojis.deer:
-        return Math.floor(betAmount * 10); // 10x payout for 2 deer
+        return Math.floor(betAmount * 5); // 10x payout for 2 deer
     }
   }
 
