@@ -173,26 +173,45 @@ function calculateWinnings(spinResult, betAmount) {
 
   // Check if all emojis in the middle row (excluding the sides) are the same
   const middleEmojis = middleRow.slice(1, -1); // Remove the sides
+  // If all three emojis match, apply the corresponding payout multiplier
   if (middleEmojis.every(emoji => emoji === middleEmojis[0])) {
     switch (middleEmojis[0]) {
       case emojis.cherry:
-        return Math.floor(betAmount * 1.5);
+        return Math.floor(betAmount * 15); // 15x payout for 3 cherries
       case emojis.grape:
-        return betAmount * 2;
+        return Math.floor(betAmount * 25); // 25x payout for 3 grapes
       case emojis.watermelon:
-        return betAmount * 3;
+        return Math.floor(betAmount * 30); // 30x payout for 3 watermelons
       case emojis.pineapple:
-        return betAmount * 5;
+        return Math.floor(betAmount * 50); // 50x payout for 3 pineapples
       case emojis.deer:
-        const totalWinnings = getJackpotTotal(pgClient); // Get current jackpot total
+        const jackpotTotal = getJackpotTotal(pgClient); // Get current jackpot total
         resetJackpot(pgClient); // Reset the jackpot after winning
-        return totalWinnings;
+        return jackpotTotal; // Win the jackpot
     }
   }
 
-  return 0; // No winnings
-}
+  // If two emojis match, apply the corresponding payout multiplier
+  if (middleEmojis[0] === middleEmojis[1] || middleEmojis[1] === middleEmojis[2]) {
+    const matchingEmoji = middleEmojis[0] === middleEmojis[1] ? middleEmojis[0] : middleEmojis[1];
 
+    switch (matchingEmoji) {
+      case emojis.cherry:
+        return Math.floor(betAmount * 0.5); // 0.5x payout for 2 cherries
+      case emojis.grape:
+        return Math.floor(betAmount * 1.5); // 1.5x payout for 2 grapes
+      case emojis.watermelon:
+        return Math.floor(betAmount * 2); // 2x payout for 2 watermelons
+      case emojis.pineapple:
+        return Math.floor(betAmount * 5); // 5x payout for 2 pineapples
+      case emojis.deer:
+        return Math.floor(betAmount * 10); // 10x payout for 2 deer
+    }
+  }
+
+  // If no matches, return 0 (the user loses their bet)
+  return 0;
+}
 // Function to update the jackpot
 async function updateJackpot(pgClient, amount) {
   await pgClient.query('INSERT INTO jackpot (id, total) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET total = jackpot.total + $2', [1, amount]);
