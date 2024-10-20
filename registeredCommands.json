@@ -106,6 +106,12 @@
     "type": 1
   },
   {
+    "options": [],
+    "name": "roulette",
+    "description": "Spin the roulette wheel!",
+    "type": 1
+  },
+  {
     "options": [
       {
         "type": 4,

@@ -4,128 +4,115 @@ const path = require('path');
 require('dotenv').config(); // Load environment variables from .env file
 
 module.exports = (client, pgClient) => {
-  // Load the word list from data/words.json file
-  const wordsFilePath = path.join(__dirname, '../data/words.json'); // Adjusted to point to data folder
-  const words = JSON.parse(fs.readFileSync(wordsFilePath, 'utf8')); // Read and parse the word list
+  const wordsFilePath = path.join(__dirname, '../data/words.json');
+  const words = JSON.parse(fs.readFileSync(wordsFilePath, 'utf8'));
   let currentWord = '';
   let currentGroup = '';
   let gameInProgress = false;
   let winnerDeclared = false;
-  let gameMessage = null; // Variable to store the game message
+  let gameMessage = null;
 
-  // Get the channel ID from environment variables
-  const WORDGAMECHANNEL_ID = process.env.WORDGAMECHANNEL_ID; // Make sure this is set in your .env file
+  const WORDGAMECHANNEL_ID = process.env.WORDGAMECHANNEL_ID;
 
-  // Function to start a new round of the word game
   async function startWordGame() {
-    if (gameInProgress) return; // Don't start a new round if one is already in progress
+    if (gameInProgress) return;
 
     gameInProgress = true;
     winnerDeclared = false;
 
-    // Pick a random word from the list
     const randomWord = words[Math.floor(Math.random() * words.length)];
     currentWord = randomWord.word;
     currentGroup = randomWord.group;
 
-    // Scramble the word
     const scrambledWord = scrambleWord(currentWord);
-
-    // Check if the group starts with a vowel (case insensitive)
     const article = startsWithVowel(currentGroup) ? 'an' : 'a';
 
-    // Announce the word game
-    const channel = client.channels.cache.get(WORDGAMECHANNEL_ID); // Use the channel ID from .env
+    const channel = client.channels.cache.get(WORDGAMECHANNEL_ID);
     if (!channel) {
       console.error('Channel not found! Please check the channel ID.');
       return;
     }
 
-    // Convert hex color to integer using Discord.js Color
-    const colorHex = '#e3c207';
-    const colorInt = parseInt(colorHex.replace('#', ''), 16); // Use integer directly for Discord.js v14
+    const colorInt = parseInt('#e3c207'.replace('#', ''), 16);
 
-    // Create the word game embed
     const gameEmbed = new EmbedBuilder()
-      .setColor(colorInt) // Use the integer value for color
+      .setColor(colorInt)
       .setTitle('Word Game: Type the word to win!')
       .setDescription(`**Unscramble this word**: **${scrambledWord}**\n\n**Type** the word to win **1000 dustollarinos**! You have 30 seconds!`)
       .setFooter({ text: `Hint: It's ${article} ${currentGroup} based word.` });
 
-    // Send the word game message and store the reference
     gameMessage = await channel.send({ embeds: [gameEmbed] });
 
-    // Start the timer for the round (30 seconds to guess)
     setTimeout(async () => {
       if (!winnerDeclared) {
-        // If no one has won, edit the message to indicate time's up and reveal the word
         const timeUpEmbed = new EmbedBuilder()
-          .setColor('#FF0000') // Red color for time's up
+          .setColor('#FF0000')
           .setTitle('Time\'s up!')
           .setDescription('No one typed the correct word in time. Better luck next round!')
-          .setFooter({ text: `The correct word was: ${currentWord}` }); // Show the correct word
+          .setFooter({ text: `The correct word was: ${currentWord}` });
 
         await gameMessage.edit({ embeds: [timeUpEmbed] });
-        gameInProgress = false; // Reset game
+        gameInProgress = false;
+
+        // Set a timer to delete the message after 1 minute
+        setTimeout(async () => {
+          if (gameMessage) {
+            try {
+              await gameMessage.delete(); // Delete the message after 1 minute
+            } catch (error) {
+              console.error('Failed to delete the game message:', error);
+            }
+          }
+        }, 60000); // 1 minute = 60000 ms
       }
-    }, 30000); // 30000 ms = 30 seconds timer for the word game
+    }, 30000); // 30 seconds for the word guessing period
   }
 
-  // Function to scramble a word
   function scrambleWord(word) {
     const wordArray = word.split('');
     for (let i = wordArray.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [wordArray[i], wordArray[j]] = [wordArray[j], wordArray[i]]; // Swap elements
+      [wordArray[i], wordArray[j]] = [wordArray[j], wordArray[i]];
     }
     return wordArray.join('');
   }
 
-  // Function to check if the group starts with a vowel
   function startsWithVowel(group) {
     const vowels = ['a', 'e', 'i', 'o', 'u'];
     return vowels.includes(group.charAt(0).toLowerCase());
   }
 
-  // Listen for messages to check if someone types the correct word
   client.on('messageCreate', async (message) => {
-    if (message.author.bot || !gameInProgress) return; // Ignore bot messages and if no game is in progress
+    if (message.author.bot || !gameInProgress) return;
 
     const userMessage = message.content.toLowerCase().trim();
 
-    // Check if the message matches the word and no winner has been declared
     if (userMessage === currentWord && !winnerDeclared) {
       winnerDeclared = true;
 
-      // Reward the winner with 1000 dustollarinos
       try {
         await pgClient.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [1000, message.author.id]);
 
-        // Create a winner embed
         const winnerEmbed = new EmbedBuilder()
-          .setColor('#02ba11') // Green for a win
+          .setColor('#02ba11')
           .setTitle('Congratulations!')
           .setDescription(`**${message.author.username}** won the prize by typing "**${currentWord}**" correctly and won **1000 dustollarinos**!`)
           .setFooter({ text: 'Good luck in the next round!' })
           .setTimestamp();
 
-        // Edit the original message to announce the winner
         await gameMessage.edit({ embeds: [winnerEmbed] });
       } catch (error) {
         console.error('Error updating balance:', error);
       } finally {
-        // Reset the game
         gameInProgress = false;
       }
     }
   });
 
-  // Function to schedule the word game at :00 and :30
   function scheduleWordGame() {
     const now = new Date();
     const minutes = now.getMinutes();
-    
-    // Calculate the time until the next valid start (either :00 or :30)
+
     let nextStart;
     if (minutes < 30) {
       nextStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 30, 0);
@@ -135,15 +122,13 @@ module.exports = (client, pgClient) => {
 
     const timeUntilNextStart = nextStart - now;
 
-    // Start the game at the next scheduled time
     setTimeout(() => {
-      startWordGame(); // Start the game
-      scheduleWordGame(); // Reschedule the next game
+      startWordGame();
+      scheduleWordGame();
     }, timeUntilNextStart);
   }
 
-  // Start the scheduling when the bot comes online
   client.once('ready', () => {
-    scheduleWordGame(); // Start the scheduling for the word game
+    scheduleWordGame();
   });
 };
