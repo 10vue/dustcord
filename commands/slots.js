@@ -74,7 +74,7 @@ module.exports = {
 
     // Build the initial message with rolling emojis 
     const initialMessage = getSlotMessage(true); 
-     
+
     // Send the initial message with rolling emojis 
     const message = await interaction.editReply(initialMessage); 
 
@@ -87,16 +87,20 @@ module.exports = {
       await delay(500); // Half a second between each step 
     } 
 
+    // Create the outcome string in a 3x5 format
+    const outcomeMessage = spinResult.map(row => row.join(' ')).join('\n');
+
     // Create the info embed for additional information 
     const infoEmbed = new EmbedBuilder() 
       .setColor('#e3c207') 
       .setTitle(' Slots Result ') // Updated title 
       .setDescription(`**Your Bet:** ${betAmount} dustollarinos\n\n` + 
+        outcomeMessage + '\n\n' + // Include the outcome emojis
         (winnings > 0 ? `**You Win:** ${winnings} dustollarinos!` : `**You Lose!** Your bet has been added to the jackpot.`))
       .setFooter({ text: `Total Jackpot: ${await getJackpotTotal(pgClient)} dustollarinos` });
 
-    // Send the information embed
-    await interaction.followUp({ embeds: [infoEmbed] });
+    // Edit the initial message to remove the emojis and show the embed
+    await message.edit({ embeds: [infoEmbed], content: '' }); // Edit the previous message to show only the embed
 
     isSlotInUse = false; // Unlock the command
   },
