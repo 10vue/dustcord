@@ -12,11 +12,27 @@ module.exports = {
   async execute(interaction, pgClient) { // Accept pgClient as a parameter
     const userId = interaction.user.id;
     const betAmount = interaction.options.getInteger('bet');
+    const now = new Date();
+
+    // Set current time to Pacific/Auckland timezone
+    const currentTime = new Date(now.toLocaleString('en-US', { timeZone: 'Pacific/Auckland' }));
+
+    // Calculate today's midnight in Pacific/Auckland timezone
+    const todayMidnight = new Date(currentTime);
+    todayMidnight.setHours(0, 0, 0, 0); // Set to midnight (00:00:00)
 
     try {
+      // Check the last time the user used the coinflip command
+      const lastUsedRes = await pgClient.query('SELECT last_coinflip_time FROM last_coinflip_times WHERE user_id = $1', [userId]);
+      let lastCoinflipTime = lastUsedRes.rows.length ? new Date(lastUsedRes.rows[0].last_coinflip_time) : null;
+
+      // Check if the user has already used the command today
+      if (lastCoinflipTime && lastCoinflipTime >= todayMidnight) {
+        return interaction.reply({ content: 'You can only use the coinflip command once per day. Please try again tomorrow!' });
+      }
+
       // Query the user's balance from the database
       const balanceRes = await pgClient.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
-
       let userBalance = balanceRes.rows.length ? balanceRes.rows[0].balance : 0;
 
       // Check if the user has enough dustollarinos to bet
@@ -79,6 +95,9 @@ module.exports = {
 
         // Update the user's balance in the database
         await pgClient.query('INSERT INTO balances (user_id, balance) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET balance = $2', [userId, userBalance]);
+
+        // Update the user's last coinflip time
+        await pgClient.query('INSERT INTO last_coinflip_times (user_id, last_coinflip_time) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET last_coinflip_time = $2', [userId, currentTime]);
 
         // Send result message and disable buttons
         await choiceInteraction.update({
