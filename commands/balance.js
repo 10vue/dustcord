@@ -52,6 +52,13 @@ module.exports = {
 
       // Handle payment to another user
       if (payAmount !== null) {
+        // Ensure payAmount is positive
+        if (payAmount <= 0) {
+          embed.setColor('#ba0230')
+            .setDescription('You cannot pay a negative or zero amount.');
+          return interaction.editReply({ embeds: [embed] });
+        }
+
         // Ensure the sender has enough balance to pay
         const senderResult = await pgClient.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
         const senderBalance = senderResult.rows[0] ? senderResult.rows[0].balance : 0;
