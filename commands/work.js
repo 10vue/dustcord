@@ -48,9 +48,17 @@ module.exports = {
       earnedAmount = 500;
     }
 
-    // Update the user's balance in the database
+    // Check if the user exists in the balances table
     try {
-      await pgClient.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [earnedAmount, userId]);
+      const balanceRes = await pgClient.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
+
+      if (balanceRes.rows.length === 0) {
+        // User doesn't exist, insert them with the earned amount
+        await pgClient.query('INSERT INTO balances (user_id, balance) VALUES ($1, $2)', [userId, earnedAmount]);
+      } else {
+        // User exists, update their balance
+        await pgClient.query('UPDATE balances SET balance = balance + $1 WHERE user_id = $2', [earnedAmount, userId]);
+      }
 
       // Send a success message
       const embed = new EmbedBuilder()
